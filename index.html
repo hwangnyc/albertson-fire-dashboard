@@ -176,7 +176,7 @@
 /* ================= config ================= */
 const SUPABASE_URL = "https://sddzkerxgkdnafequvmv.supabase.co/rest/v1";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZHprZXJ4Z2tkbmFmZXF1dm12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjIwNTgsImV4cCI6MjA5ODkzODA1OH0.cCCa0ycEpY15jXaO9xxB6lRCJepVouvRkoVsvj7o1CA";
-const GMAPS_KEY = "AIzaSyCDO8wa5rLzRDa6R0-JoUV1lpmhBz6UpEs";
+const GMAPS_KEY = "AIzaSyAv-xMvXq1A3gBt56gwWpqNaf_973QUh04";
 const PASS_HASH = "0811c6216ffd897e0aaa2421d2c2a01d29e38b5561dc255900426ac213aef876";
 const HQ = "100 I.U. Willets Road, Albertson, NY 11507";
 const POLL_MS = 60000;
@@ -300,7 +300,7 @@ function renderHouse(){
   const loc=(inc.lat&&inc.lng)?inc.lat+","+inc.lng:(inc.address?encodeURIComponent(inc.address):null);
   if(!loc){ wrap.innerHTML='<div class="sv-fallback">No location for Street View.</div>'; cap.style.display="none"; return; }
   const url="https://maps.googleapis.com/maps/api/streetview?size=800x600&location="+loc+"&key="+GMAPS_KEY;
-  wrap.innerHTML='<img id="sv" referrerpolicy="no-referrer" src="'+url+'" alt="Street view of '+esc(inc.address||"call location")+'" '+
+  wrap.innerHTML='<img id="sv" src="'+url+'" alt="Street view of '+esc(inc.address||"call location")+'" '+
     'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">';
   cap.style.display="block";
   cap.textContent=(inc.lat&&inc.lng?inc.lat.toFixed(5)+", "+inc.lng.toFixed(5)+" · ":"")+ (inc.address||"");
