@@ -32,82 +32,89 @@
   /* ---------- app frame ---------- */
   #app{display:none;min-height:100vh}
   header{position:sticky;top:0;z-index:20;background:rgba(11,14,20,.94);backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--border);padding:12px 18px;display:flex;align-items:center;gap:12px}
+    border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:10px}
   header .dot{width:10px;height:10px;border-radius:50%;background:var(--green);
-    box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+    box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;flex:none}
   @keyframes pulse{50%{opacity:.45}}
-  header h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  header h1 small{color:var(--muted);font-weight:400}
-  #clock{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+  header h1{font-size:16px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #clock{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
   #refresh-btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
-    border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
-  #last-upd{color:var(--muted);font-size:12px}
+    border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;white-space:nowrap}
   #newcall{display:none;background:var(--red);color:#fff;text-align:center;font-weight:800;
-    padding:12px;font-size:17px;letter-spacing:1px;animation:pulse 1s infinite;cursor:pointer}
-  main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px;max-width:1400px;margin:0 auto}
-  /* ---------- call list ---------- */
-  #list{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;
-    align-self:start;max-height:calc(100vh - 110px);display:flex;flex-direction:column}
-  #list h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
-    margin:0;padding:14px 16px 8px}
-  #list-items{overflow-y:auto}
-  .call-item{padding:12px 16px;border-top:1px solid var(--border);cursor:pointer}
-  .call-item:hover{background:var(--panel2)}
-  .call-item.sel{background:var(--panel2);border-left:3px solid var(--red)}
-  .call-item .t{font-weight:700;font-size:14px}
-  .call-item .a{color:var(--muted);font-size:12.5px;margin-top:3px}
-  .call-item .m{color:var(--muted);font-size:11.5px;margin-top:3px;display:flex;justify-content:space-between}
-  /* ---------- detail ---------- */
-  #detail{min-width:0}
-  .hero{background:linear-gradient(135deg,#1a1420,#141a26);border:1px solid var(--border);
-    border-radius:12px;padding:20px;margin-bottom:16px}
-  .hero .addr{font-size:24px;font-weight:800;margin:10px 0 6px;line-height:1.25}
-  .hero .sub{color:var(--muted);font-size:14px}
+    padding:12px;font-size:16px;letter-spacing:1px;animation:pulse 1s infinite;cursor:pointer}
+  /* selected call strip */
+  #selbar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 16px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #selbar .addr{font-weight:800;font-size:16px}
+  #selbar .meta{color:var(--muted);font-size:12.5px}
   .badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .badge{font-size:12px;font-weight:800;letter-spacing:.6px;padding:5px 11px;border-radius:20px;
-    text-transform:uppercase}
+  .badge{font-size:11.5px;font-weight:800;letter-spacing:.6px;padding:4px 10px;border-radius:20px;
+    text-transform:uppercase;white-space:nowrap}
   .b-red{background:rgba(255,82,82,.15);color:var(--red);border:1px solid var(--red)}
   .b-amber{background:rgba(255,176,32,.13);color:var(--amber);border:1px solid var(--amber)}
   .b-blue{background:rgba(90,169,255,.13);color:var(--blue);border:1px solid var(--blue)}
   .b-green{background:rgba(61,220,132,.12);color:var(--green);border:1px solid var(--green)}
   .b-purple{background:rgba(179,136,255,.13);color:var(--purple);border:1px solid var(--purple)}
   .b-gray{background:rgba(143,153,176,.12);color:var(--muted);border:1px solid var(--muted)}
-  .pill{font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px}
+  .pill{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
   .pill.active{background:var(--red);color:#fff;animation:pulse 1.5s infinite}
   .pill.cleared{background:#2a3348;color:var(--muted)}
-  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-  .chip{background:#0e1320;border:1px solid var(--border);border-radius:7px;padding:5px 10px;
-    font-size:13px;font-weight:700}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
-    padding:18px 20px;margin-bottom:16px}
-  .card h3{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
-  #sv{width:100%;border-radius:9px;display:block;min-height:200px;background:#0e1320}
-  .sv-fallback{padding:40px 20px;text-align:center;color:var(--muted);border:1px dashed var(--border);
-    border-radius:9px;font-size:14px}
-  #route-btn{display:block;text-align:center;background:var(--red);color:#fff;font-weight:800;
-    font-size:17px;padding:15px;border-radius:10px;text-decoration:none;margin-bottom:16px}
-  #route-btn small{display:block;font-weight:400;font-size:12px;opacity:.85;margin-top:3px}
-  #route-btn:active{transform:scale(.99)}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
-  .field .k{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
-  .field .v{font-size:14.5px;margin-top:2px;overflow-wrap:anywhere}
-  table.units{width:100%;border-collapse:collapse;font-size:13.5px}
-  table.units th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;
-    letter-spacing:.6px;padding:8px 6px;border-bottom:1px solid var(--border)}
-  table.units td{padding:8px 6px;border-bottom:1px solid #1b2334;font-variant-numeric:tabular-nums}
-  .empty{padding:60px 20px;text-align:center;color:var(--muted)}
-  .narr{white-space:pre-wrap;background:#0e1320;border:1px solid var(--border);border-radius:8px;
-    padding:12px;font-size:14px;line-height:1.5}
-  @media (max-width:900px){
-    main{grid-template-columns:1fr}
-    #list{max-height:300px}
-    .hero .addr{font-size:20px}
-    .grid{grid-template-columns:1fr}
+  /* ---------- 3-column layout ---------- */
+  .layout{display:grid;gap:14px;padding:14px;max-width:1700px;margin:0 auto;align-items:start;
+    grid-template-columns:300px minmax(0,1fr) minmax(0,1.55fr);
+    grid-template-areas:"calls house route" "details details details";}
+  #calls-col{grid-area:calls}
+  #house-col{grid-area:house}
+  #route-col{grid-area:route}
+  #details-col{grid-area:details}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .panel-h{padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:800;
+    text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:flex;
+    align-items:center;justify-content:space-between;gap:8px}
+  #route-col .panel{border-color:var(--red);box-shadow:0 0 24px rgba(255,82,82,.12)}
+  #route-col .panel-h{color:var(--red);font-size:13px}
+  /* calls list */
+  #list-items{overflow-y:auto;max-height:640px}
+  .call-item{padding:11px 14px;border-top:1px solid var(--border);cursor:pointer}
+  .call-item:first-child{border-top:0}
+  .call-item:hover{background:var(--panel2)}
+  .call-item.sel{background:var(--panel2);border-left:3px solid var(--red)}
+  .call-item .t{font-weight:700;font-size:13.5px}
+  .call-item .a{color:var(--muted);font-size:12px;margin-top:2px}
+  .call-item .m{color:var(--muted);font-size:11px;margin-top:3px;display:flex;justify-content:space-between;gap:6px}
+  /* house picture */
+  #sv{width:100%;display:block;aspect-ratio:4/3;object-fit:cover;background:#0e1320}
+  .sv-fallback{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
+  .cap{padding:10px 16px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border)}
+  /* route map — the focal panel */
+  #route-frame{width:100%;height:560px;border:0;display:block;background:#0e1320}
+  #route-open{display:block;text-align:center;padding:11px;color:var(--text);text-decoration:none;
+    font-size:13.5px;font-weight:700;border-top:1px solid var(--border);background:var(--panel2)}
+  #route-open:active{background:#232c3d}
+  /* details */
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 20px;padding:16px 18px}
+  .field .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+  .field .v{font-size:14px;margin-top:2px;overflow-wrap:anywhere}
+  .narr{margin:0 18px 16px;white-space:pre-wrap;background:#0e1320;border:1px solid var(--border);
+    border-radius:8px;padding:12px;font-size:14px;line-height:1.5}
+  table.units{width:100%;border-collapse:collapse;font-size:13.5px;margin:0 0 6px}
+  table.units th{text-align:left;color:var(--muted);font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.6px;padding:8px 18px;border-bottom:1px solid var(--border)}
+  table.units td{padding:8px 18px;border-bottom:1px solid #1b2334;font-variant-numeric:tabular-nums}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{background:#0e1320;border:1px solid var(--border);border-radius:7px;padding:4px 9px;
+    font-size:12.5px;font-weight:700}
+  .empty{padding:50px 20px;text-align:center;color:var(--muted);font-size:14px}
+  @media (max-width:1020px){
+    .layout{grid-template-columns:1fr;
+      grid-template-areas:"route" "house" "details" "calls";}
+    #route-frame{height:380px}
+    #list-items{max-height:280px}
+    .grid{grid-template-columns:1fr 1fr}
   }
 </style>
 </head>
 <body>
-<!-- login gate -->
 <div id="gate">
   <div class="gate-card">
     <div class="flame">🚒</div>
@@ -121,23 +128,47 @@
   </div>
 </div>
 
-<!-- app -->
 <div id="app">
   <header>
-    <span class="dot" id="live-dot" title="Auto-refreshing"></span>
-    <h1>🚒 Albertson Fire Dept <small>— Live Calls</small></h1>
+    <span class="dot" title="Auto-refreshing"></span>
+    <h1>🚒 Albertson Fire Dept — Live Calls</h1>
     <span id="clock"></span>
-    <span id="last-upd"></span>
     <button id="refresh-btn">↻ Refresh</button>
   </header>
   <div id="newcall">🔥 NEW CALL — TAP TO VIEW</div>
-  <main>
-    <div id="list">
-      <h2>Recent calls</h2>
-      <div id="list-items"><div class="empty">Loading…</div></div>
+  <div id="selbar" style="display:none"></div>
+
+  <div class="layout">
+    <div id="calls-col">
+      <div class="panel">
+        <div class="panel-h"><span>📋 Calls</span><span id="upd"></span></div>
+        <div id="list-items"><div class="empty">Loading…</div></div>
+      </div>
     </div>
-    <div id="detail"><div class="empty">Loading…</div></div>
-  </main>
+
+    <div id="house-col">
+      <div class="panel">
+        <div class="panel-h"><span>🏠 House</span></div>
+        <div id="sv-wrap"><div class="empty">Select a call.</div></div>
+        <div class="cap" id="sv-cap" style="display:none"></div>
+      </div>
+    </div>
+
+    <div id="route-col">
+      <div class="panel">
+        <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
+        <div id="route-wrap"><div class="empty">Select a call.</div></div>
+        <a id="route-open" href="#" target="_blank" rel="noopener" style="display:none">Open turn-by-turn in Google Maps ↗</a>
+      </div>
+    </div>
+
+    <div id="details-col">
+      <div class="panel">
+        <div class="panel-h"><span>📝 Call details</span></div>
+        <div id="detail-body"><div class="empty">Select a call to see details.</div></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -187,6 +218,7 @@ function badgeClass(callType){
   return "b-gray";
 }
 const isActive = inc => !(inc.cleared_at || (inc.status||"").toLowerCase()==="cleared");
+const destOf = inc => (inc.lat && inc.lng) ? inc.lat+","+inc.lng : (inc.address||"");
 
 /* ================= auth gate ================= */
 $("gate-form").addEventListener("submit", async e => {
@@ -196,174 +228,144 @@ $("gate-form").addEventListener("submit", async e => {
   if (!v) return;
   try {
     const h = await sha256hex(v);
-    if (h === PASS_HASH) {
-      sessionStorage.setItem("afd_auth","1");
-      enter();
-    } else {
-      $("gate-err").textContent = "Incorrect passphrase.";
-      $("gate-input").value = ""; $("gate-input").focus();
-    }
+    if (h === PASS_HASH) { sessionStorage.setItem("afd_auth","1"); enter(); }
+    else { $("gate-err").textContent = "Incorrect passphrase."; $("gate-input").value=""; $("gate-input").focus(); }
   } catch(err){ $("gate-err").textContent = "This page needs a secure (https) connection."; }
 });
-function enter(){
-  $("gate").style.display = "none";
-  $("app").style.display = "block";
-  boot();
-}
+function enter(){ $("gate").style.display="none"; $("app").style.display="block"; boot(); }
 
 /* ================= data ================= */
-let incidents = [], selected = null, knownIds = new Set(), unitsCache = {}, pollTimer = null;
+let incidents=[], selected=null, knownIds=new Set(), unitsCache={};
 
 async function api(path){
-  const r = await fetch(SUPABASE_URL + path, { headers: HEADERS });
-  if (!r.ok) throw new Error("HTTP " + r.status);
+  const r = await fetch(SUPABASE_URL+path,{headers:HEADERS});
+  if(!r.ok) throw new Error("HTTP "+r.status);
   return r.json();
 }
 async function loadIncidents(isPoll){
   const rows = await api("/incidents?select=*&order=created_at.desc&limit=25");
-  const fresh = [];
-  for (const r of rows) if (!knownIds.has(r.incident_number)) fresh.push(r);
-  rows.forEach(r => knownIds.add(r.incident_number));
+  const fresh = rows.filter(r=>!knownIds.has(r.incident_number));
+  rows.forEach(r=>knownIds.add(r.incident_number));
   incidents = rows;
   if (isPoll && fresh.length){
-    const b = $("newcall");
-    b.style.display = "block";
-    b.textContent = "🔥 NEW CALL — " + fresh[0].call_type + " — TAP TO VIEW";
-    b.onclick = () => { selectIncident(fresh[0].incident_number); b.style.display="none"; window.scrollTo(0,0); };
+    const b=$("newcall");
+    b.style.display="block";
+    b.textContent="🔥 NEW CALL — "+fresh[0].call_type+" — TAP TO VIEW";
+    b.onclick=()=>{ selectIncident(fresh[0].incident_number); b.style.display="none"; window.scrollTo(0,0); };
     selectIncident(fresh[0].incident_number);
-  } else if (!selected || !rows.find(r=>r.incident_number===selected)) {
-    selectIncident(rows.length ? rows[0].incident_number : null);
-  } else {
-    renderDetail();
-  }
-  renderList();
-  $("last-upd").textContent = "Updated " + dts.format(new Date());
+  } else if (!selected || !rows.find(r=>r.incident_number===selected)){
+    selectIncident(rows.length?rows[0].incident_number:null);
+  } else renderAll();
+  $("upd").textContent = "upd "+dts.format(new Date());
 }
 async function loadUnits(num){
-  if (!num) return [];
-  if (unitsCache[num]) return unitsCache[num];
+  if(!num) return [];
+  if(unitsCache[num]) return unitsCache[num];
   const rows = await api("/incident_units?select=*&incident_number=eq."+encodeURIComponent(num)+"&order=tx_at.asc");
-  unitsCache[num] = rows;
-  return rows;
+  unitsCache[num]=rows; return rows;
 }
-function selectIncident(num){
-  selected = num;
-  renderList(); renderDetail();
-}
+function selectIncident(num){ selected=num; renderAll(); }
 
 /* ================= render ================= */
+function renderAll(){ renderSelbar(); renderList(); renderHouse(); renderRoute(); renderDetail(); }
+
+function renderSelbar(){
+  const bar=$("selbar"), inc=incidents.find(r=>r.incident_number===selected);
+  if(!inc){ bar.style.display="none"; return; }
+  bar.style.display="flex";
+  bar.innerHTML =
+    '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span>'+
+    (isActive(inc)?'<span class="pill active">ACTIVE</span>':'<span class="pill cleared">CLEARED</span>')+
+    '<span class="addr">'+esc(inc.address||"—")+'</span>'+
+    '<span class="meta">'+esc(inc.incident_number)+
+    (inc.dispatched_at?' · dispatched '+esc(fmtT(inc.dispatched_at))+' ('+esc(rel(inc.dispatched_at))+')':"")+'</span>';
+}
+
 function renderList(){
-  const box = $("list-items");
-  if (!incidents.length){ box.innerHTML = '<div class="empty">No calls in the database yet.<br>New calls will appear here automatically.</div>'; return; }
-  box.innerHTML = incidents.map(inc => {
-    const active = isActive(inc);
-    return '<div class="call-item'+(inc.incident_number===selected?" sel":"")+'" data-num="'+esc(inc.incident_number)+'">'+
-      '<div class="t">'+esc(inc.call_type||"Unknown")+(active?' <span class="pill active">ACTIVE</span>':"")+'</div>'+
-      '<div class="a">'+esc(inc.address||"—")+'</div>'+
-      '<div class="m"><span>'+esc(inc.incident_number)+'</span><span>'+esc(rel(inc.dispatched_at||inc.created_at))+'</span></div>'+
-    '</div>';
-  }).join("");
-  box.querySelectorAll(".call-item").forEach(el =>
-    el.addEventListener("click", ()=>{ $("newcall").style.display="none"; selectIncident(el.dataset.num); }));
+  const box=$("list-items");
+  if(!incidents.length){ box.innerHTML='<div class="empty">No calls yet.<br>New calls appear here automatically.</div>'; return; }
+  box.innerHTML=incidents.map(inc=>
+    '<div class="call-item'+(inc.incident_number===selected?" sel":"")+'" data-num="'+esc(inc.incident_number)+'">'+
+    '<div class="t">'+esc(inc.call_type||"Unknown")+(isActive(inc)?' <span class="pill active">ACTIVE</span>':"")+'</div>'+
+    '<div class="a">'+esc(inc.address||"—")+'</div>'+
+    '<div class="m"><span>'+esc(inc.incident_number)+'</span><span>'+esc(rel(inc.dispatched_at||inc.created_at))+'</span></div>'+
+    '</div>').join("");
+  box.querySelectorAll(".call-item").forEach(el=>
+    el.addEventListener("click",()=>{ $("newcall").style.display="none"; selectIncident(el.dataset.num); }));
 }
-function streetViewURL(inc){
-  const loc = (inc.lat && inc.lng) ? inc.lat+","+inc.lng
-    : inc.address ? encodeURIComponent(inc.address) : null;
-  if (!loc) return null;
-  return "https://maps.googleapis.com/maps/api/streetview?size=800x450&location="+loc+"&key="+GMAPS_KEY;
+
+function renderHouse(){
+  const wrap=$("sv-wrap"), cap=$("sv-cap"), inc=incidents.find(r=>r.incident_number===selected);
+  if(!inc){ wrap.innerHTML='<div class="empty">Select a call.</div>'; cap.style.display="none"; return; }
+  const loc=(inc.lat&&inc.lng)?inc.lat+","+inc.lng:(inc.address?encodeURIComponent(inc.address):null);
+  if(!loc){ wrap.innerHTML='<div class="sv-fallback">No location for Street View.</div>'; cap.style.display="none"; return; }
+  const url="https://maps.googleapis.com/maps/api/streetview?size=800x600&location="+loc+"&key="+GMAPS_KEY;
+  wrap.innerHTML='<img id="sv" referrerpolicy="no-referrer" src="'+url+'" alt="Street view of '+esc(inc.address||"call location")+'" '+
+    'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">';
+  cap.style.display="block";
+  cap.textContent=(inc.lat&&inc.lng?inc.lat.toFixed(5)+", "+inc.lng.toFixed(5)+" · ":"")+ (inc.address||"");
 }
-function directionsURL(inc){
-  const dest = (inc.lat && inc.lng) ? inc.lat+","+inc.lng : (inc.address||"");
-  return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(HQ)+
+
+function renderRoute(){
+  const wrap=$("route-wrap"), open=$("route-open"), inc=incidents.find(r=>r.incident_number===selected);
+  if(!inc||!destOf(inc)){ wrap.innerHTML='<div class="empty">Select a call.</div>'; open.style.display="none"; return; }
+  const dest=destOf(inc);
+  const embed="https://www.google.com/maps/embed/v1/directions?key="+GMAPS_KEY+
+    "&origin="+encodeURIComponent(HQ)+"&destination="+encodeURIComponent(dest)+"&mode=driving";
+  wrap.innerHTML='<iframe id="route-frame" title="Route from HQ" loading="lazy" src="'+embed+'"></iframe>';
+  open.style.display="block";
+  open.href="https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(HQ)+
     "&destination="+encodeURIComponent(dest);
 }
+
 function field(k,v){ return '<div class="field"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
 async function renderDetail(){
-  const box = $("detail");
-  const inc = incidents.find(r=>r.incident_number===selected);
-  if (!inc){ box.innerHTML = '<div class="empty">Select a call to see details.</div>'; return; }
-  const active = isActive(inc);
-  const units = Array.isArray(inc.units_responding) ? inc.units_responding : [];
-  const sv = streetViewURL(inc);
-
-  let html = '<div class="hero"><div class="badges">'+
-    '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span>'+
-    (active?'<span class="pill active">ACTIVE</span>':'<span class="pill cleared">CLEARED</span>')+
-    (inc.is_mutual_aid?'<span class="badge b-green">Mutual aid</span>':"")+
-    '</div>'+
-    '<div class="addr">'+esc(inc.address||"Address not parsed")+'</div>'+
-    '<div class="sub">'+esc(inc.incident_number)+
-      (inc.cross_streets ? ' · ✚ '+esc(inc.cross_streets) : "")+
-      (inc.fire_quadrant ? ' · Quad '+esc(inc.fire_quadrant) : "")+'</div>'+
-    '<div class="sub" style="margin-top:6px">Dispatched '+esc(fmtT(inc.dispatched_at))+
-      (inc.dispatched_at ? ' <b>('+esc(rel(inc.dispatched_at))+')</b>' : "")+
-      (inc.cleared_at ? ' · Cleared '+esc(fmtT(inc.cleared_at)) : "")+'</div>'+
-    (units.length?'<div class="chips">'+units.map(u=>'<span class="chip">🚒 '+esc(u)+'</span>').join("")+'</div>':"")+
+  const box=$("detail-body"), inc=incidents.find(r=>r.incident_number===selected);
+  if(!inc){ box.innerHTML='<div class="empty">Select a call to see details.</div>'; return; }
+  const units=Array.isArray(inc.units_responding)?inc.units_responding:[];
+  let html='<div class="grid">'+
+    field("Incident #",esc(inc.incident_number))+field("FDID",esc(inc.fdid||"—"))+
+    field("Call type",esc(inc.call_type||"—"))+field("CFS #",esc(inc.cfs_number||"—"))+
+    field("Address",esc(inc.address||"—"))+field("Cross streets",esc(inc.cross_streets||"—"))+
+    field("Quadrant",esc(inc.fire_quadrant||"—"))+field("Status",esc(inc.status||"—"))+
+    field("Additional info",esc(inc.additional_info||"—"))+
+    field("Mutual aid",inc.is_mutual_aid?"Yes"+(Array.isArray(inc.mutual_aid_depts)&&inc.mutual_aid_depts.length?" ("+esc(inc.mutual_aid_depts.join(", "))+")":""):"No")+
+    field("Albertson primary",inc.is_albertson_primary?"Yes":"No")+
+    field("Members notified",inc.notified?"Yes":"No")+
+    field("Dispatched",esc(fmtT(inc.dispatched_at)))+field("Cleared",esc(fmtT(inc.cleared_at)))+
+    field("Logged",esc(fmtT(inc.created_at)))+field("Updated",esc(fmtT(inc.updated_at)))+
+    field("Units responding",units.length?'<span class="chips">'+units.map(u=>'<span class="chip">🚒 '+esc(u)+'</span>').join("")+'</span>':"—")+
     '</div>';
-
-  html += '<div class="card"><h3>Street view — call location</h3>';
-  if (sv) html += '<img id="sv" referrerpolicy="no-referrer" src="'+sv+'" alt="Street view of call location" '+
-    'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">';
-  else html += '<div class="sv-fallback">No location available for Street View.</div>';
-  html += '</div>';
-
-  html += '<a id="route-btn" href="'+esc(directionsURL(inc))+'" target="_blank" rel="noopener">🧭 Fastest route from HQ'+
-    '<small>Opens turn-by-turn directions from 100 I.U. Willets Road in Google Maps</small></a>';
-
-  const narr = inc.narrative ? '<div class="card"><h3>Narrative</h3><div class="narr">'+esc(inc.narrative)+'</div></div>' : "";
-  html += '<div class="card"><h3>Call details</h3><div class="grid">'+
-    field("Incident #", esc(inc.incident_number))+
-    field("FDID", esc(inc.fdid||"—"))+
-    field("Call type", esc(inc.call_type||"—"))+
-    field("CFS #", esc(inc.cfs_number||"—"))+
-    field("Address", esc(inc.address||"—"))+
-    field("Cross streets", esc(inc.cross_streets||"—"))+
-    field("Quadrant", esc(inc.fire_quadrant||"—"))+
-    field("Status", esc(inc.status||"—"))+
-    field("Additional info", esc(inc.additional_info||"—"))+
-    field("Mutual aid", inc.is_mutual_aid ? "Yes"+(Array.isArray(inc.mutual_aid_depts)&&inc.mutual_aid_depts.length?" ("+esc(inc.mutual_aid_depts.join(", "))+")":"") : "No")+
-    field("Albertson primary", inc.is_albertson_primary ? "Yes" : "No")+
-    field("Members notified", inc.notified ? "Yes" : "No")+
-    field("Dispatched", esc(fmtT(inc.dispatched_at)))+
-    field("Cleared", esc(fmtT(inc.cleared_at)))+
-    field("Logged", esc(fmtT(inc.created_at)))+
-    field("Updated", esc(fmtT(inc.updated_at)))+
-    '</div></div>' + narr;
-
-  box.innerHTML = html + '<div class="card" id="units-card"><h3>Units</h3><div class="empty">Loading units…</div></div>';
-
-  try {
-    const urows = await loadUnits(inc.incident_number);
-    const uc = $("units-card");
-    if (!urows.length){ uc.innerHTML = "<h3>Units</h3><div class='empty'>No unit records for this call.</div>"; return; }
-    uc.innerHTML = "<h3>Units ("+urows.length+")</h3><table class='units'><tr><th>Unit</th><th>TX</th>"+
-      "<th>Enroute</th><th>On scene</th><th>Cleared</th></tr>"+
+  if(inc.narrative) html+='<div class="narr">'+esc(inc.narrative)+'</div>';
+  html+='<div id="units-wrap"><div class="empty">Loading units…</div></div>';
+  box.innerHTML=html;
+  try{
+    const urows=await loadUnits(inc.incident_number);
+    const w=$("units-wrap");
+    if(!urows.length){ w.innerHTML="<div class='empty'>No unit records for this call.</div>"; return; }
+    w.innerHTML="<table class='units'><tr><th>Unit</th><th>TX</th><th>Enroute</th><th>On scene</th><th>Cleared</th></tr>"+
       urows.map(u=>"<tr><td><b>"+esc(u.unit)+"</b>"+(u.is_albertson?" 🚒":"")+"</td><td>"+esc(fmtT(u.tx_at))+
-        "</td><td>"+esc(fmtT(u.enroute_at))+"</td><td>"+esc(fmtT(u.onscene_at))+"</td><td>"+esc(fmtT(u.cleared_at))+"</td></tr>").join("")+
-      "</table>";
-  } catch(e){
-    $("units-card").innerHTML = "<h3>Units</h3><div class='empty'>Could not load units.</div>";
-  }
+      "</td><td>"+esc(fmtT(u.enroute_at))+"</td><td>"+esc(fmtT(u.onscene_at))+"</td><td>"+esc(fmtT(u.cleared_at))+"</td></tr>").join("")+"</table>";
+  }catch(e){ $("units-wrap").innerHTML="<div class='empty'>Could not load units.</div>"; }
 }
 
 /* ================= boot & poll ================= */
-function tickClock(){ $("clock").textContent = dts.format(new Date()); }
+function tickClock(){ $("clock").textContent=dts.format(new Date()); }
 async function refresh(isPoll){
-  try { await loadIncidents(isPoll); }
+  try{ await loadIncidents(isPoll); }
   catch(e){
     if(!isPoll){
-      $("list-items").innerHTML = '<div class="empty">Could not reach the database.<br>Check your connection and tap Refresh.</div>';
-      $("detail").innerHTML = "";
+      $("list-items").innerHTML='<div class="empty">Could not reach the database.<br>Check your connection and tap Refresh.</div>';
     }
   }
 }
 function boot(){
-  tickClock(); setInterval(tickClock, 1000);
+  tickClock(); setInterval(tickClock,1000);
   refresh(false);
-  pollTimer = setInterval(()=>refresh(true), POLL_MS);
-  $("refresh-btn").addEventListener("click", ()=>refresh(false));
+  setInterval(()=>refresh(true),POLL_MS);
+  $("refresh-btn").addEventListener("click",()=>refresh(false));
 }
-if (sessionStorage.getItem("afd_auth")==="1") enter();
+if(sessionStorage.getItem("afd_auth")==="1") enter();
 </script>
 </body>
 </html>
