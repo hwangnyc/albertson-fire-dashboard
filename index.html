@@ -429,6 +429,18 @@ function checkConn(){
     $("connlost-age").textContent = lastOkTs?rel(new Date(lastOkTs).toISOString()):"never";
   } else el.style.display="none";
 }
+/* Screen Wake Lock: keeps the firehouse TV from blanking (second layer
+   behind the Pi's own blanking settings; harmless on desktop browsers). */
+async function keepAwake(){
+  try{
+    if(!("wakeLock" in navigator)) return;
+    const req=()=>navigator.wakeLock.request("screen").catch(()=>{});
+    await req();
+    document.addEventListener("visibilitychange",()=>{
+      if(document.visibilityState==="visible") req();
+    });
+  }catch(e){}
+}
 /* ================= boot & poll ================= */
 function tickClock(){ $("clock").textContent=dts.format(new Date()); }
 async function refresh(isPoll){
@@ -449,6 +461,7 @@ function boot(){
   bootTs=Date.now();
   tickClock(); setInterval(tickClock,1000);
   initRealtime();
+  keepAwake();
   refresh(false);
   setInterval(()=>refresh(true),POLL_MS);
   setInterval(checkConn,30000);
