@@ -29,6 +29,9 @@
     background:var(--red);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
   .gate-card button:active{transform:scale(.98)}
   #gate-err{color:var(--red);font-size:13px;min-height:20px;margin-top:10px}
+  .trust{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;
+    color:var(--muted);font-size:13px;cursor:pointer}
+  .trust input{width:auto;margin:0;accent-color:var(--red)}
   /* ---------- app frame ---------- */
   #app{display:none;min-height:100vh}
   header{position:sticky;top:0;z-index:20;background:rgba(11,14,20,.94);backdrop-filter:blur(8px);
@@ -42,6 +45,8 @@
     border-radius:8px;padding:9px 14px;font-size:16px;cursor:pointer;white-space:nowrap}
   #newcall{display:none;background:var(--red);color:#fff;text-align:center;font-weight:800;
     padding:16px;font-size:22px;letter-spacing:1px;animation:pulse 1s infinite;cursor:pointer}
+  #connlost{display:none;background:var(--amber);color:#241500;text-align:center;font-weight:800;
+    padding:14px 20px;font-size:20px}
   /* selected call strip */
   .badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .badge{font-size:14px;font-weight:800;letter-spacing:.6px;padding:5px 12px;border-radius:20px;
@@ -120,6 +125,7 @@
     .grid{grid-template-columns:1fr 1fr}
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div id="gate">
@@ -130,6 +136,7 @@
     <form id="gate-form">
       <input id="gate-input" type="password" placeholder="Passphrase" autocomplete="off" autofocus>
       <button type="submit">Enter</button>
+      <label class="trust"><input type="checkbox" id="gate-trust"> Trust this device</label>
     </form>
     <div id="gate-err"></div>
   </div>
@@ -143,6 +150,7 @@
     <button id="refresh-btn">↻ Refresh</button>
   </header>
   <div id="newcall">🔥 NEW CALL — TAP TO VIEW</div>
+  <div id="connlost">⚠️ CONNECTION LOST — last update <span id="connlost-age"></span></div>
 
   <div class="layout">
     <div id="calls-col">
@@ -233,7 +241,11 @@ $("gate-form").addEventListener("submit", async e => {
   if (!v) return;
   try {
     const h = await sha256hex(v);
-    if (h === PASS_HASH) { sessionStorage.setItem("afd_auth","1"); enter(); }
+    if (h === PASS_HASH) {
+      if($("gate-trust").checked) localStorage.setItem("afd_auth","1");
+      else sessionStorage.setItem("afd_auth","1");
+      enter();
+    }
     else { $("gate-err").textContent = "Incorrect passphrase."; $("gate-input").value=""; $("gate-input").focus(); }
   } catch(err){ $("gate-err").textContent = "This page needs a secure (https) connection."; }
 });
@@ -383,23 +395,66 @@ function renderInfo(){
       ' <span class="info-rel">('+esc(rel(inc.dispatched_at))+')</span></div>':"")+
     '<div class="info-meta">'+esc(inc.incident_number)+'</div>';
 }
+/* ================= realtime push + heartbeat + staleness ================= */
+const SB_URL = SUPABASE_URL.replace("/rest/v1","");
+const PI_ID = new URLSearchParams(location.search).get("pi") || "firehouse-tv-1";
+let sbClient=null, lastOkTs=0, bootTs=0;
+function initRealtime(){
+  try{
+    if(sbClient||!window.supabase) return;
+    sbClient = window.supabase.createClient(SB_URL, ANON_KEY);
+    sbClient.channel("incidents-live")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"incidents"},()=>refresh(true))
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"incidents"},()=>refresh(true))
+      .subscribe();
+  }catch(e){/* 60s poll remains the fallback */}
+}
+async function heartbeat(){
+  if(!sbClient) return;
+  try{
+    await sbClient.from("pi_heartbeats").upsert({
+      pi_id: PI_ID,
+      ts: new Date().toISOString(),
+      last_fetch_ok: lastOkTs?new Date(lastOkTs).toISOString():null,
+      newest_incident_at: incidents.length?incidents[0].created_at:null
+    },{onConflict:"pi_id"});
+  }catch(e){/* telemetry must never break the dashboard */}
+}
+function checkConn(){
+  const el=$("connlost");
+  const stale = lastOkTs ? (Date.now()-lastOkTs > 2.5*POLL_MS)
+                         : (Date.now()-bootTs > 3*POLL_MS);
+  if(stale){
+    el.style.display="block";
+    $("connlost-age").textContent = lastOkTs?rel(new Date(lastOkTs).toISOString()):"never";
+  } else el.style.display="none";
+}
 /* ================= boot & poll ================= */
 function tickClock(){ $("clock").textContent=dts.format(new Date()); }
 async function refresh(isPoll){
-  try{ await loadIncidents(isPoll); }
+  try{
+    await loadIncidents(isPoll);
+    lastOkTs=Date.now();
+    checkConn();
+    heartbeat();
+  }
   catch(e){
     if(!isPoll){
       $("list-items").innerHTML='<div class="empty">Could not reach the database.<br>Check your connection and tap Refresh.</div>';
     }
+    checkConn();
   }
 }
 function boot(){
+  bootTs=Date.now();
   tickClock(); setInterval(tickClock,1000);
+  initRealtime();
   refresh(false);
   setInterval(()=>refresh(true),POLL_MS);
+  setInterval(checkConn,30000);
   $("refresh-btn").addEventListener("click",()=>refresh(false));
 }
-if(sessionStorage.getItem("afd_auth")==="1") enter();
+if(localStorage.getItem("afd_auth")==="1"||sessionStorage.getItem("afd_auth")==="1") enter();
 </script>
 </body>
 </html>
