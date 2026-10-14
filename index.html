@@ -81,21 +81,15 @@
   .call-item .t{font-weight:700;font-size:13.5px}
   .call-item .a{color:var(--muted);font-size:12px;margin-top:2px}
   .call-item .m{color:var(--muted);font-size:11px;margin-top:3px;display:flex;justify-content:space-between;gap:6px}
-  /* house picture */
-  #sv{width:100%;display:block;aspect-ratio:4/3;object-fit:cover;background:#0e1320}
+  /* house: info on top (1/3), street view below (2/3) */
+  #house-split{display:flex;flex-direction:column;height:600px}
+  #info-top{flex:0 0 33.333%;overflow-y:auto;padding:16px 18px;border-bottom:1px solid var(--border)}
+  #info-top .info-addr{font-weight:800;font-size:19px;margin-top:8px}
+  #info-top .info-meta{color:var(--muted);font-size:12.5px;margin-top:4px}
+  #info-top .empty{padding:30px 10px}
+  #sv-wrap{flex:1;min-height:0;position:relative}
+  #sv{width:100%;height:100%;object-fit:cover;display:block;background:#0e1320}
   .sv-fallback{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
-  /* house picture + details overlay */
-  #sv-wrap{position:relative}
-  #sv-overlay{position:absolute;left:0;right:0;bottom:0;max-height:100%;overflow-y:auto;
-    background:linear-gradient(to top,rgba(11,14,20,.96) 60%,rgba(11,14,20,.70));
-    padding:14px 16px;border-top:1px solid var(--border)}
-  #sv-overlay .ov-head{margin-bottom:10px}
-  #sv-overlay .ov-head .addr{font-weight:800;font-size:16px;margin-left:6px}
-  #sv-overlay .ov-head .meta{color:var(--muted);font-size:12px;margin-top:3px}
-  #sv-overlay .grid{grid-template-columns:repeat(2,1fr);gap:10px 16px;padding:0}
-  #sv-overlay .narr{margin:12px 0 0}
-  #sv-overlay table.units th,#sv-overlay table.units td{padding:7px 10px}
-  #sv-overlay .empty{padding:24px 10px}
   .cap{padding:10px 16px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border)}
   /* route map — the focal panel */
   #route-frame{width:100%;height:560px;border:0;display:block;background:#0e1320}
@@ -120,6 +114,7 @@
     .layout{grid-template-columns:1fr;
       grid-template-areas:"route" "house" "calls";}
     #route-frame{height:380px}
+    #house-split{height:480px}
     #list-items{max-height:280px}
     .grid{grid-template-columns:1fr 1fr}
   }
@@ -160,7 +155,10 @@
     <div id="house-col">
       <div class="panel">
         <div class="panel-h"><span>🏠 House</span></div>
-        <div id="sv-wrap"><div class="empty">Select a call.</div></div>
+        <div id="house-split">
+          <div id="info-top"><div class="empty">Select a call.</div></div>
+          <div id="sv-wrap"><div class="empty">Select a call.</div></div>
+        </div>
       </div>
     </div>
 
@@ -238,7 +236,7 @@ $("gate-form").addEventListener("submit", async e => {
 function enter(){ $("gate").style.display="none"; $("app").style.display="block"; boot(); }
 
 /* ================= data ================= */
-let incidents=[], selected=null, knownIds=new Set(), unitsCache={};
+let incidents=[], selected=null, knownIds=new Set();
 
 async function api(path){
   const r = await fetch(SUPABASE_URL+path,{headers:HEADERS});
@@ -261,16 +259,10 @@ async function loadIncidents(isPoll){
   } else renderAll();
   $("upd").textContent = "upd "+dts.format(new Date());
 }
-async function loadUnits(num){
-  if(!num) return [];
-  if(unitsCache[num]) return unitsCache[num];
-  const rows = await api("/incident_units?select=*&incident_number=eq."+encodeURIComponent(num)+"&order=tx_at.asc");
-  unitsCache[num]=rows; return rows;
-}
 function selectIncident(num){ selected=num; renderAll(); }
 
 /* ================= render ================= */
-function renderAll(){ renderSelbar(); renderList(); renderHouse(); renderRoute(); renderDetail(); }
+function renderAll(){ renderSelbar(); renderList(); renderInfo(); renderHouse(); renderRoute(); }
 
 function renderSelbar(){
   const bar=$("selbar"), inc=incidents.find(r=>r.incident_number===selected);
@@ -301,21 +293,14 @@ let houseFor="__none__";
 function renderHouse(){
   const wrap=$("sv-wrap"), inc=incidents.find(r=>r.incident_number===selected);
   const key=inc?inc.incident_number:"__none__";
-  if(key===houseFor&&$("sv-overlay"))return;
+  if(key===houseFor&&$("sv"))return;
   houseFor=key;
   if(!inc){ wrap.innerHTML='<div class="empty">Select a call.</div>'; return; }
   const loc=(inc.lat&&inc.lng)?inc.lat+","+inc.lng:(inc.address?encodeURIComponent(inc.address):null);
   if(!loc){ wrap.innerHTML='<div class="sv-fallback">No location for Street View.</div>'; return; }
   const url="https://maps.googleapis.com/maps/api/streetview?size=800x600&fov=110&location="+loc+"&key="+GMAPS_KEY;
   wrap.innerHTML='<img id="sv" src="'+url+'" alt="Street view of '+esc(inc.address||"call location")+'" '+
-    'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">'+
-    '<div id="sv-overlay"><div class="ov-head">'+
-    '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span>'+
-    '<span class="addr">'+esc(inc.address||"—")+'</span>'+
-    '<div class="meta">'+esc(inc.incident_number)+
-    (inc.lat&&inc.lng?" · "+inc.lat.toFixed(5)+", "+inc.lng.toFixed(5):"")+
-    (inc.dispatched_at?" · dispatched "+esc(fmtT(inc.dispatched_at)):"")+'</div></div>'+
-    '<div id="detail-body"><div class="empty">Loading details…</div></div></div>';
+    'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">';
 }
 
 function renderRoute(){
@@ -330,39 +315,16 @@ function renderRoute(){
     "&destination="+encodeURIComponent(dest);
 }
 
-function field(k,v){ return '<div class="field"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
-async function renderDetail(){
-  const box=$("detail-body");
-  if(!box)return;
-  const inc=incidents.find(r=>r.incident_number===selected);
-  if(!inc){ box.innerHTML='<div class="empty">Select a call to see details.</div>'; return; }
-  const units=Array.isArray(inc.units_responding)?inc.units_responding:[];
-  let html='<div class="grid">'+
-    field("Incident #",esc(inc.incident_number))+field("FDID",esc(inc.fdid||"—"))+
-    field("Call type",esc(inc.call_type||"—"))+field("CFS #",esc(inc.cfs_number||"—"))+
-    field("Address",esc(inc.address||"—"))+field("Cross streets",esc(inc.cross_streets||"—"))+
-    field("Quadrant",esc(inc.fire_quadrant||"—"))+field("Status",esc(inc.status||"—"))+
-    field("Additional info",esc(inc.additional_info||"—"))+
-    field("Mutual aid",inc.is_mutual_aid?"Yes"+(Array.isArray(inc.mutual_aid_depts)&&inc.mutual_aid_depts.length?" ("+esc(inc.mutual_aid_depts.join(", "))+")":""):"No")+
-    field("Albertson primary",inc.is_albertson_primary?"Yes":"No")+
-    field("Members notified",inc.notified?"Yes":"No")+
-    field("Dispatched",esc(fmtT(inc.dispatched_at)))+field("Cleared",esc(fmtT(inc.cleared_at)))+
-    field("Logged",esc(fmtT(inc.created_at)))+field("Updated",esc(fmtT(inc.updated_at)))+
-    field("Units responding",units.length?'<span class="chips">'+units.map(u=>'<span class="chip">🚒 '+esc(u)+'</span>').join("")+'</span>':"—")+
-    '</div>';
-  if(inc.narrative) html+='<div class="narr">'+esc(inc.narrative)+'</div>';
-  html+='<div id="units-wrap"><div class="empty">Loading units…</div></div>';
-  box.innerHTML=html;
-  try{
-    const urows=await loadUnits(inc.incident_number);
-    const w=$("units-wrap");
-    if(!urows.length){ w.innerHTML="<div class='empty'>No unit records for this call.</div>"; return; }
-    w.innerHTML="<table class='units'><tr><th>Unit</th><th>TX</th><th>Enroute</th><th>On scene</th><th>Cleared</th></tr>"+
-      urows.map(u=>"<tr><td><b>"+esc(u.unit)+"</b>"+(u.is_albertson?" 🚒":"")+"</td><td>"+esc(fmtT(u.tx_at))+
-      "</td><td>"+esc(fmtT(u.enroute_at))+"</td><td>"+esc(fmtT(u.onscene_at))+"</td><td>"+esc(fmtT(u.cleared_at))+"</td></tr>").join("")+"</table>";
-  }catch(e){ $("units-wrap").innerHTML="<div class='empty'>Could not load units.</div>"; }
+function renderInfo(){
+  const box=$("info-top"), inc=incidents.find(r=>r.incident_number===selected);
+  if(!inc){ box.innerHTML='<div class="empty">Select a call.</div>'; return; }
+  box.innerHTML=
+    '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span> '+
+    (isActive(inc)?'<span class="pill active">ACTIVE</span>':'<span class="pill cleared">CLEARED</span>')+
+    '<div class="info-addr">'+esc(inc.address||"-")+'</div>'+
+    '<div class="info-meta">'+esc(inc.incident_number)+
+    (inc.dispatched_at?' - dispatched '+esc(fmtT(inc.dispatched_at))+' ('+esc(rel(inc.dispatched_at))+')':"")+'</div>';
 }
-
 /* ================= boot & poll ================= */
 function tickClock(){ $("clock").textContent=dts.format(new Date()); }
 async function refresh(isPoll){
