@@ -62,11 +62,10 @@
   /* ---------- 3-column layout ---------- */
   .layout{display:grid;gap:14px;padding:14px;max-width:1700px;margin:0 auto;align-items:start;
     grid-template-columns:300px minmax(0,1fr) minmax(0,1.55fr);
-    grid-template-areas:"calls house route" "details details details";}
+    grid-template-areas:"calls house route";}
   #calls-col{grid-area:calls}
   #house-col{grid-area:house}
   #route-col{grid-area:route}
-  #details-col{grid-area:details}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .panel-h{padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:800;
     text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:flex;
@@ -85,6 +84,18 @@
   /* house picture */
   #sv{width:100%;display:block;aspect-ratio:4/3;object-fit:cover;background:#0e1320}
   .sv-fallback{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
+  /* house picture + details overlay */
+  #sv-wrap{position:relative}
+  #sv-overlay{position:absolute;left:0;right:0;bottom:0;max-height:100%;overflow-y:auto;
+    background:linear-gradient(to top,rgba(11,14,20,.96) 60%,rgba(11,14,20,.70));
+    padding:14px 16px;border-top:1px solid var(--border)}
+  #sv-overlay .ov-head{margin-bottom:10px}
+  #sv-overlay .ov-head .addr{font-weight:800;font-size:16px;margin-left:6px}
+  #sv-overlay .ov-head .meta{color:var(--muted);font-size:12px;margin-top:3px}
+  #sv-overlay .grid{grid-template-columns:repeat(2,1fr);gap:10px 16px;padding:0}
+  #sv-overlay .narr{margin:12px 0 0}
+  #sv-overlay table.units th,#sv-overlay table.units td{padding:7px 10px}
+  #sv-overlay .empty{padding:24px 10px}
   .cap{padding:10px 16px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border)}
   /* route map — the focal panel */
   #route-frame{width:100%;height:560px;border:0;display:block;background:#0e1320}
@@ -107,7 +118,7 @@
   .empty{padding:50px 20px;text-align:center;color:var(--muted);font-size:14px}
   @media (max-width:1020px){
     .layout{grid-template-columns:1fr;
-      grid-template-areas:"route" "house" "details" "calls";}
+      grid-template-areas:"route" "house" "calls";}
     #route-frame{height:380px}
     #list-items{max-height:280px}
     .grid{grid-template-columns:1fr 1fr}
@@ -150,7 +161,6 @@
       <div class="panel">
         <div class="panel-h"><span>🏠 House</span></div>
         <div id="sv-wrap"><div class="empty">Select a call.</div></div>
-        <div class="cap" id="sv-cap" style="display:none"></div>
       </div>
     </div>
 
@@ -159,13 +169,6 @@
         <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
         <div id="route-wrap"><div class="empty">Select a call.</div></div>
         <a id="route-open" href="#" target="_blank" rel="noopener" style="display:none">Open turn-by-turn in Google Maps ↗</a>
-      </div>
-    </div>
-
-    <div id="details-col">
-      <div class="panel">
-        <div class="panel-h"><span>📝 Call details</span></div>
-        <div id="detail-body"><div class="empty">Select a call to see details.</div></div>
       </div>
     </div>
   </div>
@@ -294,16 +297,25 @@ function renderList(){
     el.addEventListener("click",()=>{ $("newcall").style.display="none"; selectIncident(el.dataset.num); }));
 }
 
+let houseFor="__none__";
 function renderHouse(){
-  const wrap=$("sv-wrap"), cap=$("sv-cap"), inc=incidents.find(r=>r.incident_number===selected);
-  if(!inc){ wrap.innerHTML='<div class="empty">Select a call.</div>'; cap.style.display="none"; return; }
+  const wrap=$("sv-wrap"), inc=incidents.find(r=>r.incident_number===selected);
+  const key=inc?inc.incident_number:"__none__";
+  if(key===houseFor&&$("sv-overlay"))return;
+  houseFor=key;
+  if(!inc){ wrap.innerHTML='<div class="empty">Select a call.</div>'; return; }
   const loc=(inc.lat&&inc.lng)?inc.lat+","+inc.lng:(inc.address?encodeURIComponent(inc.address):null);
-  if(!loc){ wrap.innerHTML='<div class="sv-fallback">No location for Street View.</div>'; cap.style.display="none"; return; }
-  const url="https://maps.googleapis.com/maps/api/streetview?size=800x600&location="+loc+"&key="+GMAPS_KEY;
+  if(!loc){ wrap.innerHTML='<div class="sv-fallback">No location for Street View.</div>'; return; }
+  const url="https://maps.googleapis.com/maps/api/streetview?size=800x600&fov=110&location="+loc+"&key="+GMAPS_KEY;
   wrap.innerHTML='<img id="sv" src="'+url+'" alt="Street view of '+esc(inc.address||"call location")+'" '+
-    'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">';
-  cap.style.display="block";
-  cap.textContent=(inc.lat&&inc.lng?inc.lat.toFixed(5)+", "+inc.lng.toFixed(5)+" · ":"")+ (inc.address||"");
+    'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">'+
+    '<div id="sv-overlay"><div class="ov-head">'+
+    '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span>'+
+    '<span class="addr">'+esc(inc.address||"—")+'</span>'+
+    '<div class="meta">'+esc(inc.incident_number)+
+    (inc.lat&&inc.lng?" · "+inc.lat.toFixed(5)+", "+inc.lng.toFixed(5):"")+
+    (inc.dispatched_at?" · dispatched "+esc(fmtT(inc.dispatched_at)):"")+'</div></div>'+
+    '<div id="detail-body"><div class="empty">Loading details…</div></div></div>';
 }
 
 function renderRoute(){
@@ -320,7 +332,9 @@ function renderRoute(){
 
 function field(k,v){ return '<div class="field"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
 async function renderDetail(){
-  const box=$("detail-body"), inc=incidents.find(r=>r.incident_number===selected);
+  const box=$("detail-body");
+  if(!box)return;
+  const inc=incidents.find(r=>r.incident_number===selected);
   if(!inc){ box.innerHTML='<div class="empty">Select a call to see details.</div>'; return; }
   const units=Array.isArray(inc.units_responding)?inc.units_responding:[];
   let html='<div class="grid">'+
