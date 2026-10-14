@@ -43,10 +43,6 @@
   #newcall{display:none;background:var(--red);color:#fff;text-align:center;font-weight:800;
     padding:16px;font-size:22px;letter-spacing:1px;animation:pulse 1s infinite;cursor:pointer}
   /* selected call strip */
-  #selbar{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 16px;
-    display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  #selbar .addr{font-weight:800;font-size:22px}
-  #selbar .meta{color:var(--muted);font-size:16px}
   .badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .badge{font-size:14px;font-weight:800;letter-spacing:.6px;padding:5px 12px;border-radius:20px;
     text-transform:uppercase;white-space:nowrap}
@@ -147,7 +143,6 @@
     <button id="refresh-btn">↻ Refresh</button>
   </header>
   <div id="newcall">🔥 NEW CALL — TAP TO VIEW</div>
-  <div id="selbar" style="display:none"></div>
 
   <div class="layout">
     <div id="calls-col">
@@ -271,19 +266,7 @@ async function loadIncidents(isPoll){
 function selectIncident(num){ selected=num; renderAll(); }
 
 /* ================= render ================= */
-function renderAll(){ renderSelbar(); renderList(); renderInfo(); renderHouse(); renderRoute(); }
-
-function renderSelbar(){
-  const bar=$("selbar"), inc=incidents.find(r=>r.incident_number===selected);
-  if(!inc){ bar.style.display="none"; return; }
-  bar.style.display="flex";
-  bar.innerHTML =
-    '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span>'+
-    (isActive(inc)?'<span class="pill active">ACTIVE</span>':'<span class="pill cleared">CLEARED</span>')+
-    '<span class="addr">'+esc(inc.address||"—")+'</span>'+
-    '<span class="meta">'+esc(inc.incident_number)+
-    (inc.dispatched_at?' · dispatched '+esc(fmtT(inc.dispatched_at))+' ('+esc(rel(inc.dispatched_at))+')':"")+'</span>';
-}
+function renderAll(){ renderList(); renderInfo(); renderHouse(); renderRoute(); }
 
 function renderList(){
   const box=$("list-items");
