@@ -97,7 +97,7 @@
   .sv-fallback{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
   .cap{padding:10px 16px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border)}
   /* route map — the focal panel */
-  #route-frame{width:100%;height:640px;border:0;display:block;background:#0e1320}
+  #route-map{width:100%;height:640px;background:#0e1320}
   #route-open{display:block;text-align:center;padding:13px;color:var(--text);text-decoration:none;
     font-size:16px;font-weight:700;border-top:1px solid var(--border);background:var(--panel2)}
   #route-open:active{background:#232c3d}
@@ -118,7 +118,7 @@
   @media (max-width:1020px){
     .layout{grid-template-columns:1fr;
       grid-template-areas:"route" "house" "calls";}
-    #route-frame{height:380px}
+    #route-map{height:380px}
     #house-split{height:480px}
     #list-items{max-height:280px}
     .grid{grid-template-columns:1fr 1fr}
@@ -170,7 +170,7 @@
     <div id="route-col">
       <div class="panel">
         <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
-        <div id="route-wrap"><div class="empty">Select a call.</div></div>
+        <div id="route-wrap"><div id="route-map" style="display:none"></div><div id="route-msg"><div class="empty">Select a call.</div></div></div>
         <a id="route-open" href="#" target="_blank" rel="noopener" style="display:none">Open turn-by-turn in Google Maps ↗</a>
       </div>
     </div>
@@ -312,17 +312,82 @@ function renderHouse(){
     'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">';
 }
 
+/* ---------- route map (Maps JavaScript API: full control of default zoom) ---------- */
+let routeMap=null, dirService=null, dirRenderer=null, routeKey="__none__";
+function initRouteMap(){
+  const el=$("route-map");
+  if(!el||routeMap||!window.google||!google.maps) return;
+  routeMap=new google.maps.Map(el,{center:{lat:40.758,lng:-73.64},zoom:12,
+    mapTypeControl:false,streetViewControl:false,fullscreenControl:true,zoomControl:true});
+  dirService=new google.maps.DirectionsService();
+  dirRenderer=new google.maps.DirectionsRenderer({map:routeMap,preserveViewport:true});
+  renderRoute();
+}
+function routeApiFailed(){
+  if(routeMap) return;
+  const msg=$("route-msg"), mapEl=$("route-map"),
+        inc=incidents.find(r=>r.incident_number===selected);
+  if(!inc||!destOf(inc)) return;
+  if(mapEl) mapEl.style.display="none";
+  msg.style.display="block";
+  msg.innerHTML='<div class="empty">Route map needs the <b>Maps JavaScript API</b> enabled for this Google key.<br><br>'+
+    'In Cloud Console: APIs &amp; Services &rarr; Library &rarr; enable &ldquo;Maps JavaScript API&rdquo; and &ldquo;Directions API&rdquo;, '+
+    'then tick both under the key&rsquo;s API restrictions.</div>';
+}
 function renderRoute(){
-  const wrap=$("route-wrap"), open=$("route-open"), inc=incidents.find(r=>r.incident_number===selected);
-  if(!inc||!destOf(inc)){ wrap.innerHTML='<div class="empty">Select a call.</div>'; open.style.display="none"; return; }
-  const dest=destOf(inc);
-  const embed="https://www.google.com/maps/embed/v1/directions?key="+GMAPS_KEY+
-    "&origin="+encodeURIComponent(HQ)+"&destination="+encodeURIComponent(dest)+"&mode=driving";
-  wrap.innerHTML='<iframe id="route-frame" title="Route from HQ" loading="lazy" src="'+embed+'"></iframe>';
+  const mapEl=$("route-map"), msg=$("route-msg"), open=$("route-open"),
+        inc=incidents.find(r=>r.incident_number===selected);
+  const dest=inc?destOf(inc):"";
+  if(!inc||!dest){
+    open.style.display="none"; routeKey="__none__";
+    if(mapEl) mapEl.style.display="none";
+    msg.style.display="block";
+    msg.innerHTML='<div class="empty">Select a call.</div>';
+    return;
+  }
   open.style.display="block";
   open.href="https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(HQ)+
     "&destination="+encodeURIComponent(dest);
+  if(!routeMap){
+    if(mapEl) mapEl.style.display="none";
+    msg.style.display="block";
+    msg.innerHTML='<div class="empty">Loading route map&hellip;</div>';
+    return;
+  }
+  msg.style.display="none"; mapEl.style.display="block";
+  google.maps.event.trigger(routeMap,"resize");
+  updateRoute();
 }
+function updateRoute(){
+  const mapEl=$("route-map"), msg=$("route-msg"),
+        inc=incidents.find(r=>r.incident_number===selected);
+  const key=inc?inc.incident_number:"__none__";
+  if(key===routeKey) return;
+  routeKey=key;
+  if(!inc||!destOf(inc)){ dirRenderer.setDirections({routes:[]}); return; }
+  dirService.route({origin:HQ,destination:destOf(inc),travelMode:google.maps.TravelMode.DRIVING},
+    function(result,status){
+      if(status==="OK"&&result.routes&&result.routes.length){
+        dirRenderer.setDirections(result);
+        /* default view: whole route, zoomed out with breathing room */
+        routeMap.fitBounds(result.routes[0].bounds,80);
+        const z=routeMap.getZoom();
+        routeMap.setZoom(Math.max((z==null?12:z)-1,2));
+      }else{
+        mapEl.style.display="none"; msg.style.display="block";
+        msg.innerHTML='<div class="empty">Could not compute a driving route for this call.</div>';
+      }
+    });
+}
+(function loadMapsApi(){
+  if(window.google&&google.maps&&google.maps.Map) return;
+  const s=document.createElement("script");
+  s.src="https://maps.googleapis.com/maps/api/js?key="+GMAPS_KEY+"&callback=initRouteMap&loading=async";
+  s.async=true; s.defer=true;
+  s.onerror=function(){ routeApiFailed(); };
+  document.head.appendChild(s);
+  setTimeout(function(){ routeApiFailed(); },15000);
+})();
 
 function renderInfo(){
   const box=$("info-top"), inc=incidents.find(r=>r.incident_number===selected);
