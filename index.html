@@ -233,7 +233,18 @@ function badgeClass(callType){
   if(/mutual|assist/.test(t)) return "b-green";
   return "b-gray";
 }
-const isActive = inc => !(inc.cleared_at || (inc.status||"").toLowerCase()==="cleared");
+/* Display rule: a call counts as active until the county reports it cleared,
+   or AUTO_CLEAR_MS passes since dispatch — whichever comes first. */
+const AUTO_CLEAR_MS = 60*60*1000; /* 1 hour */
+const incTime = inc => {
+  const t = inc.dispatched_at || inc.created_at;
+  const ms = t ? new Date(t).getTime() : NaN;
+  return isNaN(ms) ? 0 : ms;
+};
+const isActive = inc => {
+  if(inc.cleared_at || (inc.status||"").toLowerCase()==="cleared") return false;
+  return Date.now() - incTime(inc) < AUTO_CLEAR_MS;
+};
 const destOf = inc => (inc.lat && inc.lng) ? inc.lat+","+inc.lng : (inc.address||"");
 
 /* ================= auth gate ================= */
