@@ -151,6 +151,7 @@
     <h1>🚒 Albertson Fire Dept — Live Calls</h1>
     <span id="clock"></span>
     <button id="refresh-btn">↻ Refresh</button>
+    <button id="signout-btn" title="Sign out">⏻</button>
   </header>
   <div id="newcall">🔥 NEW CALL — TAP TO VIEW</div>
   <div id="connlost">⚠️ CONNECTION LOST — last update <span id="connlost-age"></span></div>
@@ -500,6 +501,10 @@ function boot(){
   setInterval(()=>refresh(true),POLL_MS);
   setInterval(checkConn,30000);
   $("refresh-btn").addEventListener("click",()=>refresh(false));
+  $("signout-btn").addEventListener("click",()=>{
+    try{ localStorage.removeItem("afd_auth"); sessionStorage.removeItem("afd_auth"); }catch(e){}
+    location.reload();
+  });
 }
 if(localStorage.getItem("afd_auth")==="1"||sessionStorage.getItem("afd_auth")==="1") enter();
 </script>
