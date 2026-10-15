@@ -93,6 +93,9 @@
   #info-top .info-dt .info-rel{color:var(--muted);font-weight:400;font-size:19px}
   #info-top .info-meta{color:var(--muted);font-size:16px}
   #info-top .empty{padding:30px 10px}
+  #clear-btn{margin-top:12px;background:transparent;border:2px solid var(--green);color:var(--green);
+    font-size:17px;font-weight:700;padding:10px 20px;border-radius:9px;cursor:pointer}
+  #clear-btn:active{transform:scale(.97)}
   #sv-wrap{flex:1;min-height:0;position:relative}
   #sv{width:100%;height:100%;object-fit:cover;display:block;background:#0e1320}
   .sv-fallback{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
@@ -393,7 +396,27 @@ function renderInfo(){
     '<div class="info-addr">'+esc(inc.address||"-")+'</div>'+
     (inc.dispatched_at?'<div class="info-dt">'+esc(fmtDT(inc.dispatched_at))+
       ' <span class="info-rel">('+esc(rel(inc.dispatched_at))+')</span></div>':"")+
-    '<div class="info-meta">'+esc(inc.incident_number)+'</div>';
+    '<div class="info-meta">'+esc(inc.incident_number)+'</div>'+
+    (isActive(inc)?'<button id="clear-btn">✓ Mark cleared</button>':"");
+  const cb=$("clear-btn");
+  if(cb) cb.addEventListener("click",markCleared);
+}
+/* Manually mark the selected call cleared (county feed doesn't always send one). */
+async function markCleared(){
+  const inc=incidents.find(r=>r.incident_number===selected);
+  if(!inc||!isActive(inc)) return;
+  if(!confirm("Mark this call cleared?\n"+(inc.call_type||"Unknown")+" — "+(inc.address||""))) return;
+  try{
+    if(!sbClient||!sbClient.from) throw new Error("database client unavailable");
+    const {error}=await sbClient.from("incidents")
+      .update({cleared_at:new Date().toISOString(),status:"cleared"})
+      .eq("incident_number",selected);
+    if(error) throw error;
+    /* realtime UPDATE subscription (or the next poll) refreshes the pill */
+  }catch(e){
+    alert("Could not mark cleared: "+(e&&e.message||e)+
+      "\nIf this keeps failing, the one-time SQL update permission may not be set.");
+  }
 }
 /* ================= realtime push + heartbeat + staleness ================= */
 const SB_URL = SUPABASE_URL.replace("/rest/v1","");
