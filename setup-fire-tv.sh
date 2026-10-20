@@ -84,17 +84,18 @@ command -v unclutter >/dev/null 2>&1 && (unclutter -idle 1 -root >/dev/null 2>&1
 while true; do
   # Clear Chromium's crash flags so a power cut never shows "Restore pages?".
   rm -rf "\$HOME/.config/chromium/Singleton"*
-  "\$CHROME" \\
-    --kiosk \\
-    --noerrdialogs \\
-    --disable-session-crashed-bubble \\
-    --disable-infobars \\
-    --disable-pinch \\
-    --overscroll-history-navigation=0 \\
-    --no-first-run \\
-    --disable-features=Translate \\
-    --check-for-update-interval=31536000 \\
-    --ozone-platform-hint=auto \\
+  "\$CHROME" \
+    --kiosk \
+    --noerrdialogs \
+    --disable-session-crashed-bubble \
+    --disable-infobars \
+    --disable-pinch \
+    --overscroll-history-navigation=0 \
+    --no-first-run \
+    --password-store=basic \
+    --disable-features=Translate \
+    --check-for-update-interval=31536000 \
+    --ozone-platform-hint=auto \
     "\$URL"
   echo "[fire-tv] Chromium exited; relaunching in 5s"
   sleep 5
