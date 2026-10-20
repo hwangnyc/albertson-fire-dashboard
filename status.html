@@ -68,7 +68,7 @@
 <script>
 const SUPABASE_URL = "https://sddzkerxgkdnafequvmv.supabase.co/rest/v1";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZHprZXJ4Z2tkbmFmZXF1dm12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjIwNTgsImV4cCI6MjA5ODkzODA1OH0.cCCa0ycEpY15jXaO9xxB6lRCJepVouvRkoVsvj7o1CA";
-const PASS_HASH = "0811c6216ffd897e0aaa2421d2c2a01d29e38b5561dc255900426ac213aef876";
+const PASS_HASH = "ddf742b5270401aafa51842227ee63fb75fd748b232208af6abd9d4814c72614";
 const HEADERS = { "apikey": ANON_KEY, "Authorization": "Bearer " + ANON_KEY };
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s)
@@ -137,7 +137,7 @@ function boot(){
   tick(); setInterval(tick,1000);
   refresh(); setInterval(refresh,30000);
 }
-if(sessionStorage.getItem("afd_auth")==="1") { $("gate").style.display="none"; $("app").style.display="block"; boot(); }
+if(localStorage.getItem("afd_auth")==="1"||sessionStorage.getItem("afd_auth")==="1") { $("gate").style.display="none"; $("app").style.display="block"; boot(); }
 </script>
 </body>
 </html>
