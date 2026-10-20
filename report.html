@@ -87,6 +87,12 @@
   #sigpad{width:100%;height:170px;background:#fff;border-radius:9px;touch-action:none;cursor:crosshair}
   .sigrow{display:flex;gap:8px;margin-top:8px}
   .hint{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .iwrap{position:relative}
+  .iwrap input,.iwrap textarea{padding-right:48px!important}
+  .mic{position:absolute;right:6px;top:6px;width:32px;height:32px;border-radius:50%;
+    border:1px solid var(--border);background:var(--panel2);font-size:15px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;padding:0}
+  .mic.rec{border-color:var(--red);animation:pulse 1.2s infinite}
   .actions{position:sticky;bottom:0;background:rgba(11,14,20,.96);backdrop-filter:blur(8px);
     border-top:1px solid var(--border);padding:12px 16px calc(12px + env(safe-area-inset-bottom));
     display:flex;gap:10px;z-index:20}
@@ -377,12 +383,11 @@ function renderForm(){
 
   '<div class="sec"><h2>Narrative</h2>'+
     '<div class="narr-tools">'+
-      '<button class="btn" id="dict-btn">🎤 Dictate</button>'+
       '<button class="btn" id="ai-btn">✨ Make concise (AI)</button>'+
     '</div>'+
     '<div class="frow"><div class="fld"><textarea id="f-narrative" style="min-height:150px" placeholder="Type or dictate the narrative…">'+ro(f.narrative)+'</textarea></div></div>'+
     '<div id="ai-out"></div>'+
-    '<div class="hint">Dictate with the microphone, then tap "Make concise" — the AI tightens it up and you review the result before it goes in. Nothing is submitted automatically.</div>'+
+    '<div class="hint">Tap the 🎤 on any field to dictate into it — numbers like "five" become 5. For the narrative, dictate first, then "Make concise": the AI tightens it up and you review the result before it goes in.</div>'+
   '</div>'+
 
   '<div class="sec"><h2>Officer in charge</h2><div class="frow">'+
@@ -428,28 +433,60 @@ function wireForm(){
     el.addEventListener("input",()=>{ const [rig,k]=el.dataset.veh.split(".");
       f.veh[rig]=f.veh[rig]||{}; f.veh[rig][k]=el.value; cur.dirty=true; });
   });
-  $("dict-btn").addEventListener("click",toggleDict);
   $("ai-btn").addEventListener("click",condense);
   $("sig-clear").addEventListener("click",e=>{e.preventDefault();sigClear();});
   initSig();
   if(f.sig) sigRestore(f.sig);
+  wireMics();
 }
-/* ---- voice dictation (Web Speech API; falls back to typing) ---- */
-let rec=null,recOn=false;
-function toggleDict(){
+/* ---- voice dictation on every field (Web Speech API; falls back to typing) ---- */
+let recState=null;
+const NUMW={zero:"0",one:"1",two:"2",three:"3",four:"4",five:"5",six:"6",seven:"7",eight:"8",nine:"9",ten:"10",eleven:"11",twelve:"12",thirteen:"13",fourteen:"14",fifteen:"15",sixteen:"16",seventeen:"17",eighteen:"18",nineteen:"19",twenty:"20"};
+function wireMics(){
+  document.querySelectorAll("#form-body input:not([readonly]), #form-body textarea").forEach(el=>{
+    if(el.type==="radio"||el.type==="checkbox") return;
+    if(el.closest(".iwrap")) return;
+    const wrap=document.createElement("div");
+    wrap.className="iwrap";
+    el.parentNode.insertBefore(wrap,el);
+    wrap.appendChild(el);
+    const b=document.createElement("button");
+    b.type="button"; b.className="mic"; b.textContent="🎤"; b.title="Dictate";
+    b.setAttribute("aria-label","Dictate into this field");
+    b.addEventListener("click",e=>{e.preventDefault();toggleDict(el,b);});
+    wrap.appendChild(b);
+  });
+}
+function numify(s){
+  return s.toLowerCase().split(/\s+/).map(w=>NUMW[w]!==undefined?NUMW[w]:w).join(" ").replace(/[^0-9.$]/g,"");
+}
+function toggleDict(target,btn){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  const btn=$("dict-btn"), ta=$("f-narrative");
   if(!SR){ alert("Voice dictation isn't available in this browser — just type instead."); return; }
-  if(recOn){ rec.stop(); return; }
-  rec=new SR(); rec.continuous=true; rec.interimResults=true; rec.lang="en-US";
-  let base=ta.value?ta.value.replace(/\s+$/,"")+" ":"";
-  rec.onresult=e=>{ let txt="";
-    for(let i=e.resultIndex;i<e.results.length;i++) txt+=e.results[i][0].transcript;
-    ta.value=base+txt; cur.f.narrative=ta.value; cur.dirty=true; };
-  rec.onend=()=>{ recOn=false; btn.classList.remove("rec"); btn.textContent="🎤 Dictate"; };
-  rec.onerror=()=>{ recOn=false; btn.classList.remove("rec"); btn.textContent="🎤 Dictate"; };
-  try{ rec.start(); recOn=true; btn.classList.add("rec"); btn.textContent="⏹ Stop"; ta.focus(); }
-  catch(_){ alert("Could not start dictation."); }
+  if(recState){ try{recState.rec.stop();}catch(_){} return; }
+  const isTA=target.tagName==="TEXTAREA";
+  const numeric=/numeric|decimal/.test(target.getAttribute("inputmode")||"");
+  const rec=new SR(); rec.lang="en-US";
+  rec.continuous=isTA; rec.interimResults=isTA; rec.maxAlternatives=1;
+  const base=target.value?target.value.replace(/\s+$/,"")+(isTA?" ":""):"";
+  recState={rec:rec,btn:btn};
+  btn.classList.add("rec");
+  const done=()=>{ if(recState&&recState.btn===btn) recState=null; btn.classList.remove("rec"); };
+  rec.onresult=e=>{
+    let txt="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(!isTA&&!e.results[i].isFinal) continue;
+      txt+=e.results[i][0].transcript;
+    }
+    if(numeric) txt=numify(txt);
+    if(isTA){ target.value=base+txt; }
+    else if(txt.trim()){ target.value=(base+txt).trim(); }
+    target.dispatchEvent(new Event("input",{bubbles:true}));
+    cur.dirty=true;
+  };
+  rec.onend=done; rec.onerror=done;
+  try{ rec.start(); target.focus(); }
+  catch(_){ done(); alert("Could not start dictation."); }
 }
 /* ---- AI condense (via Supabase Edge Function; needs OPENAI_API_KEY secret) ---- */
 async function condense(){
