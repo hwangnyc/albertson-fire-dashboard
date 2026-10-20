@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="report-manifest.json">
+<link rel="apple-touch-icon" href="report-icon.png">
+<title>AFD Report Writer</title>
+<style>
+  :root{--bg:#0b0e14;--panel:#141a26;--panel2:#1a2233;--border:#26314a;--text:#e9eef7;
+    --muted:#8f99b0;--red:#ff5252;--green:#3ddc84;--amber:#ffb020;--blue:#5aa9ff}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:env(safe-area-inset-bottom)}
+  /* ---------- gate ---------- */
+  #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;background:var(--bg)}
+  .gate-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:36px 32px;width:100%;max-width:380px;text-align:center}
+  .gate-card input{width:100%;padding:13px 14px;border-radius:9px;border:1px solid var(--border);
+    background:#0e1320;color:var(--text);font-size:16px}
+  .gate-card button{width:100%;margin-top:12px;padding:13px;border:0;border-radius:9px;
+    background:var(--red);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+  #gate-err{color:var(--red);font-size:13px;min-height:20px;margin-top:10px}
+  .trust{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;
+    color:var(--muted);font-size:13px;cursor:pointer}
+  .trust input{width:auto;accent-color:var(--red)}
+  /* ---------- app shell ---------- */
+  #app{display:none;min-height:100vh}
+  header{position:sticky;top:0;z-index:20;background:rgba(11,14,20,.96);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px}
+  header h1{font-size:19px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header button{background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:9px 14px;font-size:15px;cursor:pointer;white-space:nowrap}
+  .wrap{max-width:860px;margin:0 auto;padding:16px}
+  .view{display:none}.view.on{display:block}
+  /* ---------- history list ---------- */
+  .callrow{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;margin-bottom:10px;cursor:pointer;display:flex;gap:12px;align-items:center}
+  .callrow:active{background:var(--panel2)}
+  .callrow .t{font-weight:700;font-size:16px}
+  .callrow .a{color:var(--muted);font-size:14px;margin-top:2px}
+  .callrow .m{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .st{margin-left:auto;flex:none;font-size:12px;font-weight:700;padding:5px 11px;border-radius:14px;white-space:nowrap}
+  .st.none{background:#2a3348;color:var(--muted)}
+  .st.draft{background:rgba(255,176,32,.15);color:var(--amber);border:1px solid var(--amber)}
+  .st.done{background:rgba(61,220,132,.13);color:var(--green);border:1px solid var(--green)}
+  /* ---------- editor form ---------- */
+  .sec{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:16px;margin-bottom:14px}
+  .sec h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 12px}
+  .frow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .fld{flex:1 1 140px;min-width:0}
+  .fld label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--muted);margin-bottom:5px}
+  .fld input,.fld textarea,.fld select{width:100%;background:#0e1320;border:1px solid var(--border);
+    color:var(--text);border-radius:8px;padding:11px 12px;font-size:16px;font-family:inherit}
+  .fld input[readonly]{color:var(--muted);background:#101623}
+  .fld textarea{min-height:88px;resize:vertical;line-height:1.5}
+  .opts{display:flex;gap:8px;flex-wrap:wrap}
+  .opt{display:flex;align-items:center;gap:7px;background:#0e1320;border:1px solid var(--border);
+    border-radius:9px;padding:10px 14px;font-size:15px;cursor:pointer;user-select:none}
+  .opt input{width:20px;height:20px;accent-color:var(--red);margin:0}
+  .opt.on{border-color:var(--red);background:rgba(255,82,82,.08)}
+  table.veh{width:100%;border-collapse:collapse;font-size:14px}
+  table.veh th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--muted);padding:6px 6px;border-bottom:1px solid var(--border)}
+  table.veh td{padding:5px 6px;border-bottom:1px solid #1b2334}
+  table.veh input{width:100%;background:#0e1320;border:1px solid var(--border);color:var(--text);
+    border-radius:7px;padding:9px 8px;font-size:15px;font-family:inherit}
+  .narr-tools{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;
+    padding:11px 16px;font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;
+    align-items:center;gap:7px}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+  .btn.green{background:transparent;border:2px solid var(--green);color:var(--green)}
+  .btn.rec{border-color:var(--red);color:var(--red);animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.5}}
+  #ai-out{background:#0e1320;border:1px dashed var(--border);border-radius:9px;padding:12px;
+    font-size:15px;line-height:1.55;white-space:pre-wrap;margin-top:8px;display:none}
+  #ai-out.show{display:block}
+  #sigpad{width:100%;height:170px;background:#fff;border-radius:9px;touch-action:none;cursor:crosshair}
+  .sigrow{display:flex;gap:8px;margin-top:8px}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .actions{position:sticky;bottom:0;background:rgba(11,14,20,.96);backdrop-filter:blur(8px);
+    border-top:1px solid var(--border);padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex;gap:10px;z-index:20}
+  .actions .btn{flex:1;justify-content:center;padding:14px}
+  /* ---------- print: paper form replica ---------- */
+  #view-print{display:none}
+  @media print{
+    body{background:#fff}
+    #gate,#app header,.actions,#view-history,#view-editor,.noprint{display:none!important}
+    #app{display:block!important;min-height:0}
+    #view-print{display:block!important;color:#000}
+  }
+  .paper{background:#fff;color:#111;max-width:800px;margin:0 auto;padding:34px 38px;
+    font-family:Georgia,"Times New Roman",serif;font-size:13.5px;line-height:1.45}
+  .paper h1{text-align:center;font-size:19px;margin:0;letter-spacing:1px;text-decoration:underline}
+  .paper h2{text-align:center;font-size:17px;margin:2px 0 12px}
+  .paper .prow{display:flex;gap:10px;margin:7px 0;flex-wrap:wrap;align-items:baseline}
+  .paper .k{font-weight:700;white-space:nowrap}
+  .paper .v{border-bottom:1px solid #333;flex:1;min-width:60px;padding:0 6px;font-weight:700;min-height:1.4em}
+  .paper .v.sm{flex:0 1 130px}
+  .paper table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12.5px}
+  .paper th,.paper td{border:1px solid #333;padding:4px 7px;text-align:left}
+  .paper th{background:#eee;font-size:11.5px}
+  .paper .cb{font-size:15px}
+  .paper .narr{border:1px solid #333;min-height:300px;padding:10px 12px;white-space:pre-wrap;
+    background:repeating-linear-gradient(#fff,#fff 27px,#bbb 28px);line-height:28px;font-size:13.5px}
+  .paper .sigimg{max-height:70px;max-width:340px}
+  .paper .cols2{display:flex;gap:26px}
+  .paper .cols2>div{flex:1}
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="gate-card">
+    <div style="font-size:44px">🚒</div>
+    <h1 style="font-size:20px;margin:12px 0 4px">Report Writer</h1>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 20px">Members only — enter the department passphrase</p>
+    <form id="gate-form">
+      <input id="gate-input" type="password" placeholder="Passphrase" autocomplete="off" autofocus>
+      <label class="trust"><input type="checkbox" id="gate-trust"> Trust this device</label>
+      <button type="submit">Enter</button>
+    </form>
+    <div id="gate-err"></div>
+  </div>
+</div>
+<div id="app">
+  <header>
+    <button id="back-btn" style="display:none">‹ Calls</button>
+    <h1 id="hdr">🚒 Report Writer</h1>
+  </header>
+
+  <div class="wrap view on" id="view-history">
+    <div id="hist-list"><div class="callrow"><div class="a">Loading calls…</div></div></div>
+  </div>
+
+  <div class="wrap view" id="view-editor">
+    <div id="form-body"></div>
+  </div>
+
+  <div id="view-print"><div class="paper" id="paper"></div></div>
+
+  <div class="actions noprint" id="editor-actions" style="display:none">
+    <button class="btn green" id="save-btn">💾 Save</button>
+    <button class="btn primary" id="print-btn">🖨️ PDF</button>
+  </div>
+</div>
+<script>
+"use strict";
+/* ================= config ================= */
+const SUPABASE_URL="https://sddzkerxgkdnafequvmv.supabase.co/rest/v1";
+const SB_FN="https://sddzkerxgkdnafequvmv.supabase.co/functions/v1";
+const ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZHprZXJ4Z2tkbmFmZXF1dm12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjIwNTgsImV4cCI6MjA5ODkzODA1OH0.cCCa0ycEpY15jXaO9xxB6lRCJepVouvRkoVsvj7o1CA";
+const PASS_HASH="ddf742b5270401aafa51842227ee63fb75fd748b232208af6abd9d4814c72614";
+const HEADERS={"apikey":ANON_KEY,"Authorization":"Bearer "+ANON_KEY,"Content-Type":"application/json"};
+const RIGS=["801","802","803","804","806","807","809","8011","8012","8014","8024"];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const CHECKED="☑", UNCHECKED="☐";
+"use strict";
+/* ================= auth ================= */
+async function sha256hex(str){
+  const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+$("gate-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const v=$("gate-input").value; $("gate-err").textContent="";
+  if(!v) return;
+  try{
+    if(await sha256hex(v)===PASS_HASH){
+      sessionStorage.setItem("afd_auth","1");
+      if($("gate-trust").checked){try{localStorage.setItem("afd_auth","1");}catch(_){}}
+      enter();
+    }else{$("gate-err").textContent="Incorrect passphrase.";$("gate-input").value="";}
+  }catch(_){$("gate-err").textContent="This page needs a secure (https) connection.";}
+});
+function enter(){ $("gate").style.display="none"; $("app").style.display="block"; loadHistory(); }
+let _a=false; try{_a=sessionStorage.getItem("afd_auth")==="1"||localStorage.getItem("afd_auth")==="1";}catch(_){}
+if(_a) enter();
+
+/* ================= api ================= */
+async function api(path,opts){
+  const r=await fetch(SUPABASE_URL+path,{headers:HEADERS,...(opts||{})});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const t=await r.text(); return t?JSON.parse(t):null;
+}
+const dFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",month:"short",day:"numeric",year:"numeric"});
+const tFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"2-digit",hour12:true});
+const hmFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"2-digit",minute:"2-digit",hour12:false});
+function dstr(iso){return iso?dFmt.format(new Date(iso)):"";}
+function tstr(iso){return iso?tFmt.format(new Date(iso)):"";}
+function hmstr(iso){return iso?hmFmt.format(new Date(iso)):"";}
+function rel(iso){
+  if(!iso) return "";
+  const m=Math.floor((Date.now()-new Date(iso).getTime())/60000);
+  if(m<1) return "just now"; if(m<60) return m+" min ago";
+  const h=Math.floor(m/60); if(h<24) return h+" hr "+(m%60)+" min ago";
+  return Math.floor(h/24)+" days ago";
+}
+
+/* ================= history ================= */
+let repMap={};
+async function loadHistory(){
+  showView("view-history"); $("back-btn").style.display="none";
+  $("hdr").textContent="🚒 Report Writer"; $("editor-actions").style.display="none";
+  try{
+    const [incs,reps]=await Promise.all([
+      api("/incidents?select=incident_number,call_type,address,dispatched_at,status&order=created_at.desc&limit=100"),
+      api("/reports?select=incident_number,status,updated_at").catch(()=>[])
+    ]);
+    repMap={}; (reps||[]).forEach(r=>{repMap[r.incident_number]=r;});
+    $("hist-list").innerHTML=incs.map(c=>{
+      const rep=repMap[c.incident_number];
+      const st=rep?(rep.status==="completed"?'<span class="st done">Done</span>':'<span class="st draft">Draft</span>'):'<span class="st none">New</span>';
+      return '<div class="callrow" data-inc="'+esc(c.incident_number)+'">'+
+        '<div><div class="t">'+esc(c.call_type||"Unknown")+'</div>'+
+        '<div class="a">'+esc(c.address||"")+'</div>'+
+        '<div class="m">'+esc(c.incident_number)+' · '+esc(dstr(c.dispatched_at))+' '+esc(tstr(c.dispatched_at))+'</div></div>'+st+'</div>';
+    }).join("")||'<div class="callrow"><div class="a">No calls found.</div></div>';
+    document.querySelectorAll(".callrow[data-inc]").forEach(el=>{
+      el.addEventListener("click",()=>openReport(el.dataset.inc));
+    });
+  }catch(e){ $("hist-list").innerHTML='<div class="callrow"><div class="a">Could not load calls. Check connection.</div></div>'; }
+}
+function showView(id){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
+  $(id).classList.add("on"); window.scrollTo(0,0);
+}
+$("back-btn").addEventListener("click",()=>{ saveDraft(true); loadHistory(); });
+</script>
+<script>
+"use strict";
+/* ================= report state ================= */
+let cur=null; // {incident, units, report, f:{...}}
+function blankForm(){return {
+  apt:"",zip:"",cross:"",mutual:"",mutualHint:"",
+  veh:{}, itype:"", itypeOther:"",
+  action:"", casInj:"", casDeath:"", fsInj:"", fsDeath:"", civInj:"", civDeath:"",
+  smokePresent:false, smokeAlerted:false,
+  propUse:"", propOther:"", dollarLoss:"",
+  contactName:"", contactPhone:"",
+  narrative:"", narrativeAI:"",
+  oic:"", badge:"", rank:"", sig:""
+};}
+RIGS.forEach(r=>{/* veh rows created per-report */});
+function mapItype(ct){
+  ct=String(ct||"");
+  if(/hazmat/i.test(ct)) return "HAZMAT";
+  if(/fire|smoke|burn|alarm/i.test(ct)) return "Fire";
+  if(/rescue/i.test(ct)) return "Rescue";
+  if(/ems|ambulan|medic|sick|injur/i.test(ct)) return "EMS";
+  if(/mva|accident|vehicle|auto/i.test(ct)) return "Rescue";
+  return "Other";
+}
+function splitAddr(a){
+  a=String(a||""); const i=a.lastIndexOf(",");
+  if(i<0) return {street:a.trim(),city:""};
+  return {street:a.slice(0,i).trim(), city:a.slice(i+1).trim()};
+}
+function unitKey(u){return String(u||"").replace(/\D/g,"");}
+async function openReport(incNum){
+  showView("view-editor"); $("back-btn").style.display=""; $("editor-actions").style.display="flex";
+  $("form-body").innerHTML='<div class="sec"><div class="hint">Loading…</div></div>';
+  try{
+    const [incs,units,reps]=await Promise.all([
+      api("/incidents?incident_number=eq."+encodeURIComponent(incNum)+"&select=*"),
+      api("/incident_units?incident_number=eq."+encodeURIComponent(incNum)+"&select=unit,enroute_at,onscene_at&order=tx_at"),
+      api("/reports?incident_number=eq."+encodeURIComponent(incNum)+"&select=*").catch(()=>[])
+    ]);
+    const inc=incs[0]; if(!inc) throw new Error("not found");
+    const rep=(reps&&reps[0])||null;
+    const f=Object.assign(blankForm(), (rep&&rep.form_data)||{});
+    f.veh=f.veh||{};
+    cur={incident:inc, units:units||[], report:rep, f:f, dirty:false};
+    if(!rep) prefill(f, inc, units||[]);
+    $("hdr").textContent="🚒 "+(inc.incident_number||"Report");
+    renderForm();
+  }catch(e){ $("form-body").innerHTML='<div class="sec"><div class="hint">Could not load this call.</div></div>'; }
+}
+function prefill(f, inc, units){
+  const {street,city}=splitAddr(inc.address);
+  f.apt=""; f.zip=""; f.cross=inc.cross_streets||"";
+  f._street=street; f._city=city;
+  f._date=dstr(inc.dispatched_at); f._dtime=tstr(inc.dispatched_at); f._ctime=tstr(inc.cleared_at);
+  if(inc.is_mutual_aid){ f.mutual = inc.is_albertson_primary ? "received" : "given";
+    f.mutualHint=(inc.mutual_aid_depts||[]).join(", "); }
+  RIGS.forEach(rig=>{
+    const u=units.find(x=>{const k=unitKey(x.unit); return k===rig||k.endsWith(rig);});
+    f.veh[rig]={crew:"", enr:u?hmstr(u.enroute_at):"", ons:u?hmstr(u.onscene_at):""};
+  });
+  const it=mapItype(inc.call_type);
+  f.itype=it; f.itypeOther=(it==="Other")?(inc.call_type||""):"";
+  if(inc.narrative) f.narrative=inc.narrative;
+}
+</script>
+<script>
+"use strict";
+/* ================= editor form ================= */
+function ro(v){return esc(v||"");}
+function renderForm(){
+  const inc=cur.incident, f=cur.f;
+  const {street,city}=splitAddr(inc.address);
+  const vehRows=RIGS.map(rig=>{
+    const v=(f.veh&&f.veh[rig])||{crew:"",enr:"",ons:""};
+    return '<tr><td style="font-weight:700">'+rig+'</td>'+
+      '<td><input data-veh="'+rig+'.crew" inputmode="numeric" value="'+ro(v.crew)+'" placeholder="#"></td>'+
+      '<td><input data-veh="'+rig+'.enr" value="'+ro(v.enr)+'" placeholder="HH:MM"></td>'+
+      '<td><input data-veh="'+rig+'.ons" value="'+ro(v.ons)+'" placeholder="HH:MM"></td></tr>';
+  }).join("");
+  const itypes=["Fire","HAZMAT","Rescue","EMS","Other"];
+  const puses=["Residential","Commercial","Assembly","Education","Roadway","Other"];
+  $("form-body").innerHTML=
+  '<div class="sec"><h2>Call info — pre-filled</h2><div class="frow">'+
+    fld("ALARM #",'<input value="'+ro(inc.incident_number)+'" readonly>')+
+    fld("Incident date",'<input value="'+ro(dstr(inc.dispatched_at))+'" readonly>')+
+    fld("Dispatch time",'<input value="'+ro(tstr(inc.dispatched_at))+'" readonly>')+
+    fld("Cleared time",'<input value="'+ro(tstr(inc.cleared_at))+'" readonly>')+
+  '</div><div class="frow">'+
+    fld("Location",'<input value="'+ro(street)+'" readonly>')+
+    fld("Apt",'<input id="f-apt" value="'+ro(f.apt)+'">')+
+  '</div><div class="frow">'+
+    fld("City",'<input value="'+ro(city)+'" readonly>')+
+    fld("ZIP",'<input id="f-zip" inputmode="numeric" value="'+ro(f.zip)+'">')+
+  '</div><div class="frow">'+
+    fld("Cross streets",'<input value="'+ro(inc.cross_streets)+'" readonly>')+
+  '</div>'+
+  (inc.is_mutual_aid?'<div class="hint">⚠️ Mutual aid incident'+(f.mutualHint?' — depts: '+ro(f.mutualHint):"")+'. Confirm given vs received below.</div>':"")+
+  '</div>'+
+
+  '<div class="sec"><h2>Mutual aid</h2><div class="opts">'+
+    mopt("mutual","given","GIVEN")+mopt("mutual","received","RECEIVED")+
+  '</div></div>'+
+
+  '<div class="sec"><h2>Responding vehicles — times pre-filled, add crew counts</h2>'+
+  '<table class="veh"><tr><th>Unit</th><th># crew</th><th>Enroute</th><th>On scene</th></tr>'+vehRows+'</table></div>'+
+
+  '<div class="sec"><h2>Incident type</h2><div class="opts">'+
+    itypes.map(t=>mopt("itype",t,t)).join("")+
+  '</div><div class="frow" style="margin-top:10px">'+fld("If other, specify",'<input id="f-itypeOther" value="'+ro(f.itypeOther)+'">')+'</div></div>'+
+
+  '<div class="sec"><h2>Action taken</h2><div class="frow">'+
+    fld("Action taken",'<textarea id="f-action" style="min-height:64px">'+ro(f.action)+'</textarea>')+
+  '</div></div>'+
+
+  '<div class="sec"><h2>Casualties</h2><div class="frow">'+
+    fld("Injuries",'<input id="f-casInj" inputmode="numeric" value="'+ro(f.casInj)+'">')+
+    fld("Deaths",'<input id="f-casDeath" inputmode="numeric" value="'+ro(f.casDeath)+'">')+
+  '</div><div class="frow">'+
+    fld("Fire service inj / death",'<input id="f-fsInj" value="'+ro(f.fsInj)+'" placeholder="e.g. 0 / 0">')+
+    fld("Civilian inj / death",'<input id="f-civInj" value="'+ro(f.civInj)+'" placeholder="e.g. 0 / 0">')+
+  '</div></div>'+
+
+  '<div class="sec"><h2>Smoke detectors</h2><div class="opts">'+
+    copt("smokePresent","PRESENT")+copt("smokeAlerted","ALERTED")+
+  '</div></div>'+
+
+  '<div class="sec"><h2>Property</h2><div class="opts">'+
+    puses.map(t=>mopt("propUse",t,t.toUpperCase())).join("")+
+  '</div><div class="frow" style="margin-top:10px">'+
+    fld("If other, specify",'<input id="f-propOther" value="'+ro(f.propOther)+'">')+
+    fld("Dollar loss",'<input id="f-dollarLoss" inputmode="decimal" value="'+ro(f.dollarLoss)+'" placeholder="$">')+
+  '</div></div>'+
+
+  '<div class="sec"><h2>Contact for call</h2><div class="frow">'+
+    fld("Name",'<input id="f-contactName" value="'+ro(f.contactName)+'">')+
+    fld("Phone",'<input id="f-contactPhone" inputmode="tel" value="'+ro(f.contactPhone)+'">')+
+  '</div></div>'+
+
+  '<div class="sec"><h2>Narrative</h2>'+
+    '<div class="narr-tools">'+
+      '<button class="btn" id="dict-btn">🎤 Dictate</button>'+
+      '<button class="btn" id="ai-btn">✨ Make concise (AI)</button>'+
+    '</div>'+
+    '<div class="frow"><div class="fld"><textarea id="f-narrative" style="min-height:150px" placeholder="Type or dictate the narrative…">'+ro(f.narrative)+'</textarea></div></div>'+
+    '<div id="ai-out"></div>'+
+    '<div class="hint">Dictate with the microphone, then tap "Make concise" — the AI tightens it up and you review the result before it goes in. Nothing is submitted automatically.</div>'+
+  '</div>'+
+
+  '<div class="sec"><h2>Officer in charge</h2><div class="frow">'+
+    fld("OIC name",'<input id="f-oic" value="'+ro(f.oic)+'">')+
+    fld("Badge #",'<input id="f-badge" value="'+ro(f.badge)+'">')+
+    fld("Rank",'<input id="f-rank" value="'+ro(f.rank)+'">')+
+  '</div>'+
+  '<div class="fld"><label>Signature — sign with your finger</label><canvas id="sigpad"></canvas>'+
+  '<div class="sigrow"><button class="btn" id="sig-clear">Clear</button></div></div>'+
+  '<div class="opts" style="margin-top:12px">'+copt("completed","MARK REPORT COMPLETED")+'</div>'+
+  '</div>';
+  wireForm();
+}
+function fld(label,inner){return '<div class="fld"><label>'+label+'</label>'+inner+'</div>';}
+function mopt(name,val,label){
+  const on=cur.f[name]===val;
+  return '<label class="opt'+(on?" on":"")+'"><input type="radio" name="'+name+'" value="'+val+'"'+(on?" checked":"")+'> '+label+'</label>';
+}
+function copt(name,label){
+  const on=!!cur.f[name];
+  return '<label class="opt'+(on?" on":"")+'"><input type="checkbox" data-chk="'+name+'"'+(on?" checked":"")+'> '+label+'</label>';
+}
+</script>
+<script>
+"use strict";
+/* ================= form wiring ================= */
+function wireForm(){
+  const f=cur.f;
+  document.querySelectorAll('input[name="mutual"],input[name="itype"],input[name="propUse"]').forEach(r=>{
+    r.addEventListener("change",()=>{ f[r.name]=r.value;
+      r.closest(".opts").querySelectorAll(".opt").forEach(o=>o.classList.remove("on"));
+      r.closest(".opt").classList.add("on"); cur.dirty=true; });
+  });
+  document.querySelectorAll("[data-chk]").forEach(c=>{
+    c.addEventListener("change",()=>{ f[c.dataset.chk]=c.checked;
+      c.closest(".opt").classList.toggle("on",c.checked); cur.dirty=true; });
+  });
+  ["apt","zip","itypeOther","action","casInj","casDeath","fsInj","civInj","propOther","dollarLoss",
+   "contactName","contactPhone","narrative","oic","badge","rank"].forEach(id=>{
+    const el=$("f-"+id); if(el) el.addEventListener("input",()=>{ f[id]=el.value; cur.dirty=true; });
+  });
+  document.querySelectorAll("[data-veh]").forEach(el=>{
+    el.addEventListener("input",()=>{ const [rig,k]=el.dataset.veh.split(".");
+      f.veh[rig]=f.veh[rig]||{}; f.veh[rig][k]=el.value; cur.dirty=true; });
+  });
+  $("dict-btn").addEventListener("click",toggleDict);
+  $("ai-btn").addEventListener("click",condense);
+  $("sig-clear").addEventListener("click",e=>{e.preventDefault();sigClear();});
+  initSig();
+  if(f.sig) sigRestore(f.sig);
+}
+/* ---- voice dictation (Web Speech API; falls back to typing) ---- */
+let rec=null,recOn=false;
+function toggleDict(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const btn=$("dict-btn"), ta=$("f-narrative");
+  if(!SR){ alert("Voice dictation isn't available in this browser — just type instead."); return; }
+  if(recOn){ rec.stop(); return; }
+  rec=new SR(); rec.continuous=true; rec.interimResults=true; rec.lang="en-US";
+  let base=ta.value?ta.value.replace(/\s+$/,"")+" ":"";
+  rec.onresult=e=>{ let txt="";
+    for(let i=e.resultIndex;i<e.results.length;i++) txt+=e.results[i][0].transcript;
+    ta.value=base+txt; cur.f.narrative=ta.value; cur.dirty=true; };
+  rec.onend=()=>{ recOn=false; btn.classList.remove("rec"); btn.textContent="🎤 Dictate"; };
+  rec.onerror=()=>{ recOn=false; btn.classList.remove("rec"); btn.textContent="🎤 Dictate"; };
+  try{ rec.start(); recOn=true; btn.classList.add("rec"); btn.textContent="⏹ Stop"; ta.focus(); }
+  catch(_){ alert("Could not start dictation."); }
+}
+/* ---- AI condense (via Supabase Edge Function; needs OPENAI_API_KEY secret) ---- */
+async function condense(){
+  const ta=$("f-narrative"), out=$("ai-out"), txt=ta.value.trim();
+  if(!txt){ out.className="show"; out.textContent="Dictate or type a narrative first."; return; }
+  out.className="show"; out.textContent="Working…";
+  try{
+    const r=await fetch(SB_FN+"/condense-narrative",{method:"POST",
+      headers:{"apikey":ANON_KEY,"Content-Type":"application/json"},
+      body:JSON.stringify({narrative:txt,incident:{number:cur.incident.incident_number,
+        call_type:cur.incident.call_type,address:cur.incident.address,
+        dispatched_at:cur.incident.dispatched_at}})});
+    if(!r.ok) throw new Error("ai-off");
+    const j=await r.json();
+    if(!j.condensed) throw new Error("ai-off");
+    cur.f.narrativeAI=j.condensed;
+    out.innerHTML=esc(j.condensed)+'<div style="margin-top:10px;display:flex;gap:8px">'+
+      '<button class="btn primary" id="ai-use">Use this text</button>'+
+      '<button class="btn" id="ai-keep">Keep mine</button></div>';
+    $("ai-use").addEventListener("click",()=>{ ta.value=j.condensed; cur.f.narrative=j.condensed;
+      cur.dirty=true; out.className=""; out.innerHTML=""; });
+    $("ai-keep").addEventListener("click",()=>{ out.className=""; out.innerHTML=""; });
+  }catch(_){ out.textContent="AI isn't connected yet — your text is saved as-is. (Needs the API key.)"; }
+}
+/* ---- signature pad ---- */
+let sigCtx=null,sigDraw=false,sigLast=null,sigInk=false;
+function sigSetup(){
+  const cv=$("sigpad"), r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+  cv.width=r.width*dpr; cv.height=170*dpr; cv.style.height="170px";
+  sigCtx=cv.getContext("2d"); sigCtx.scale(dpr,dpr);
+  sigCtx.lineWidth=2.5; sigCtx.lineCap="round"; sigCtx.strokeStyle="#111";
+}
+function sigPos(e){ const r=$("sigpad").getBoundingClientRect();
+  return {x:e.clientX-r.left, y:e.clientY-r.top}; }
+function initSig(){
+  sigSetup();
+  const cv=$("sigpad");
+  cv.addEventListener("pointerdown",e=>{e.preventDefault();sigDraw=true;sigLast=sigPos(e);
+    cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener("pointermove",e=>{ if(!sigDraw) return; e.preventDefault();
+    const p=sigPos(e); sigCtx.beginPath(); sigCtx.moveTo(sigLast.x,sigLast.y);
+    sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); sigLast=p; sigInk=true; cur.dirty=true; });
+  const up=()=>{ sigDraw=false;
+    if(sigInk) cur.f.sig=$("sigpad").toDataURL("image/png"); };
+  cv.addEventListener("pointerup",up); cv.addEventListener("pointercancel",up);
+}
+function sigClear(){ sigSetup(); sigInk=false; cur.f.sig=""; cur.dirty=true; }
+function sigRestore(dataUrl){ const img=new Image();
+  img.onload=()=>{ sigSetup(); sigCtx.drawImage(img,0,0,$("sigpad").getBoundingClientRect().width,170);
+    sigInk=true; }; img.src=dataUrl; }
+</script>
+<script>
+"use strict";
+/* ================= save / load ================= */
+$("save-btn").addEventListener("click",()=>saveDraft(false));
+async function saveDraft(silent){
+  if(!cur) return;
+  const f=cur.f;
+  const payload={incident_number:cur.incident.incident_number, agency:"albertson",
+    status:f.completed?"completed":"draft", form_data:f, narrative:f.narrative||"",
+    narrative_ai:f.narrativeAI||"", signature_data:f.sig||"", officer_name:f.oic||""};
+  try{
+    await api("/reports",{method:"POST",
+      headers:{...HEADERS,"Prefer":"resolution=merge-duplicates"},
+      body:JSON.stringify(payload)});
+    cur.report={status:payload.status}; cur.dirty=false;
+    repMap[cur.incident.incident_number]={status:payload.status};
+    if(!silent) toast("Saved ✓");
+  }catch(e){
+    if(!silent) alert("Couldn't save — the reports database table isn't set up yet.");
+  }
+}
+function toast(msg){
+  const d=document.createElement("div");
+  d.textContent=msg;
+  d.style.cssText="position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1a2233;border:1px solid var(--border);color:var(--text);padding:12px 22px;border-radius:10px;z-index:99;font-weight:700";
+  document.body.appendChild(d); setTimeout(()=>d.remove(),2200);
+}
+/* ================= paper replica → print/PDF ================= */
+function cb(v){return v?CHECKED:UNCHECKED;}
+$("print-btn").addEventListener("click",async()=>{
+  await saveDraft(true); buildPaper(); window.print();
+});
+function buildPaper(){
+  const inc=cur.incident, f=cur.f;
+  const {street,city}=splitAddr(inc.address);
+  const left=RIGS.slice(0,6), right=RIGS.slice(6);
+  const vehTable=rigs=>'<table><tr><th>Unit</th><th># of Crew</th><th>Enroute Time</th><th>On Scene Time</th></tr>'+
+    rigs.map(rig=>{const v=(f.veh&&f.veh[rig])||{};
+      return '<tr><td><b>'+rig+'</b></td><td>'+ro(v.crew)+'</td><td>'+ro(v.enr)+'</td><td>'+ro(v.ons)+'</td></tr>';}).join("")+'</table>';
+  const itypeRow=["Fire","HAZMAT","Rescue","EMS"].map(t=>
+    '<span class="cb">'+cb(f.itype===t)+'</span> '+t).join(" &nbsp; ")+
+    ' &nbsp; <span class="cb">'+cb(f.itype==="Other")+'</span> Other '+ro(f.itypeOther);
+  const puseRow=["Residential","Commercial","Assembly","Education","Roadway"].map(t=>
+    '<span class="cb">'+cb(f.propUse===t)+'</span> '+t).join(" &nbsp; ")+
+    ' &nbsp; <span class="cb">'+cb(f.propUse==="Other")+'</span> Other '+ro(f.propOther);
+  $("paper").innerHTML=
+  '<h1>2026 ALBERTSON FIRE COMPANY</h1><h2>FIRE/EMS REPORT</h2>'+
+  '<div class="prow"><span class="k">ALARM #:</span><span class="v">'+ro(inc.incident_number)+'</span>'+
+  '<span class="k">INCIDENT DATE:</span><span class="v sm">'+ro(dstr(inc.dispatched_at))+'</span></div>'+
+  '<div class="prow"><span class="k">Dispatch Time:</span><span class="v sm">'+ro(tstr(inc.dispatched_at))+'</span>'+
+  '<span class="k">Cleared Time:</span><span class="v sm">'+ro(tstr(inc.cleared_at))+'</span></div>'+
+  '<div class="prow"><span class="k">LOCATION:</span><span class="v">'+ro(street)+'</span>'+
+  '<span class="k">APT:</span><span class="v sm">'+ro(f.apt)+'</span></div>'+
+  '<div class="prow"><span class="k">CITY:</span><span class="v">'+ro(city)+'</span>'+
+  '<span class="k">ZIP:</span><span class="v sm">'+ro(f.zip)+'</span></div>'+
+  '<div class="prow"><span class="k">CROSS STREETS:</span><span class="v">'+ro(inc.cross_streets)+'</span></div>'+
+  '<div class="prow"><span class="k">MUTUAL AID:</span> <span class="cb">'+cb(f.mutual==="given")+'</span> GIVEN'+
+  ' &nbsp; <span class="cb">'+cb(f.mutual==="received")+'</span> RECEIVED'+
+  (f.mutualHint?' &nbsp; <i>('+ro(f.mutualHint)+')</i>':"")+'</div>'+
+  '<div class="k" style="margin-top:8px">RESPONDING VEHICLES:</div>'+
+  '<div class="cols2"><div>'+vehTable(left)+'</div><div>'+vehTable(right)+'</div></div>'+
+  '<div class="prow"><span class="k">Incident Type:</span> '+itypeRow+'</div>'+
+  '<div class="prow"><span class="k">Action Taken:</span><span class="v">'+ro(f.action)+'</span></div>'+
+  '<div class="prow"><span class="k">CASUALTIES:</span> INJURIES <span class="v sm" style="flex:0 1 60px">'+ro(f.casInj)+'</span>'+
+  ' DEATH <span class="v sm" style="flex:0 1 60px">'+ro(f.casDeath)+'</span>'+
+  ' &nbsp; FIRE SERVICE: <span class="v sm" style="flex:0 1 70px">'+ro(f.fsInj)+'</span>'+
+  ' CIVILIAN: <span class="v sm" style="flex:0 1 70px">'+ro(f.civInj)+'</span></div>'+
+  '<div class="prow"><span class="k">Smoke Detectors:</span> <span class="cb">'+cb(f.smokePresent)+'</span> PRESENT'+
+  ' &nbsp; <span class="cb">'+cb(f.smokeAlerted)+'</span> ALERTED</div>'+
+  '<div class="prow"><span class="k">Property Use:</span> '+puseRow+'</div>'+
+  '<div class="prow"><span class="k">Dollar Loss:</span><span class="v sm">'+ro(f.dollarLoss)+'</span>'+
+  '<span class="k">Contact for Call:</span><span class="v">'+ro(f.contactName)+'</span>'+
+  '<span class="k">Phone:</span><span class="v sm">'+ro(f.contactPhone)+'</span></div>'+
+  '<div class="k" style="margin:10px 0 4px">NARRATIVE:</div>'+
+  '<div class="narr">'+ro(f.narrative)+'</div>'+
+  '<div class="prow" style="margin-top:14px"><span class="k">OFFICER IN CHARGE (OIC):</span><span class="v">'+ro(f.oic)+'</span>'+
+  '<span class="k">BADGE #:</span><span class="v sm">'+ro(f.badge)+'</span>'+
+  '<span class="k">RANK:</span><span class="v sm">'+ro(f.rank)+'</span></div>'+
+  '<div class="prow"><span class="k">Signature:</span>'+
+  (f.sig?'<img class="sigimg" src="'+f.sig+'">':'<span class="v"></span>')+'</div>';
+}
+/* ================= PWA: service worker ================= */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("report-sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{"background_color":"#0b0e14","description":"Albertson Fire Company incident report writer","display":"standalone","icons":[{"purpose":"any","sizes":"512x512","src":"report-icon.png","type":"image/png"}],"name":"AFD Report Writer","orientation":"portrait","short_name":"AFD Reports","start_url":"report.html","theme_color":"#0b0e14"}
