@@ -66,12 +66,22 @@
     border-radius:9px;padding:10px 14px;font-size:15px;cursor:pointer;user-select:none}
   .opt input{width:20px;height:20px;accent-color:var(--red);margin:0}
   .opt.on{border-color:var(--red);background:rgba(255,82,82,.08)}
-  table.veh{width:100%;border-collapse:collapse;font-size:14px}
-  table.veh th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
-    color:var(--muted);padding:6px 6px;border-bottom:1px solid var(--border)}
-  table.veh td{padding:5px 6px;border-bottom:1px solid #1b2334}
-  table.veh input{width:100%;background:#0e1320;border:1px solid var(--border);color:var(--text);
-    border-radius:7px;padding:9px 8px;font-size:15px;font-family:inherit}
+  .veh-card{display:flex;gap:10px;background:#0e1320;border:1px solid var(--border);
+    border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .veh-unit{font-weight:800;font-size:17px;min-width:48px;display:flex;align-items:center;color:var(--red)}
+  .veh-fields{flex:1;display:flex;gap:8px;min-width:0}
+  .vf{min-width:0}
+  .vf label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px;white-space:nowrap}
+  .vf input{width:100%;background:#101623;border:1px solid var(--border);color:var(--text);
+    border-radius:7px;padding:10px 6px;font-size:16px;font-family:inherit;min-width:0}
+  .vf .iwrap input{padding-right:36px!important}
+  .vf .mic{width:28px;height:28px;font-size:13px;right:4px;top:4px}
+  .jump{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .jump::-webkit-scrollbar{display:none}
+  .jump a{flex:none;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    border-radius:16px;padding:9px 15px;font-size:13.5px;font-weight:600;text-decoration:none;white-space:nowrap}
+  .sec{scroll-margin-top:70px}
+  .btn{min-height:44px}
   .narr-tools{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
   .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;
     padding:11px 16px;font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;
@@ -84,7 +94,7 @@
   #ai-out{background:#0e1320;border:1px dashed var(--border);border-radius:9px;padding:12px;
     font-size:15px;line-height:1.55;white-space:pre-wrap;margin-top:8px;display:none}
   #ai-out.show{display:block}
-  #sigpad{width:100%;height:170px;background:#fff;border-radius:9px;touch-action:none;cursor:crosshair}
+  #sigpad{width:100%;height:200px;background:#fff;border-radius:9px;touch-action:none;cursor:crosshair}
   .sigrow{display:flex;gap:8px;margin-top:8px}
   .hint{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5}
   .iwrap{position:relative}
@@ -317,10 +327,11 @@ function renderForm(){
   const {street,city}=splitAddr(inc.address);
   const vehRows=RIGS.map(rig=>{
     const v=(f.veh&&f.veh[rig])||{crew:"",enr:"",ons:""};
-    return '<tr><td style="font-weight:700">'+rig+'</td>'+
-      '<td><input data-veh="'+rig+'.crew" inputmode="numeric" value="'+ro(v.crew)+'" placeholder="#"></td>'+
-      '<td><input data-veh="'+rig+'.enr" value="'+ro(v.enr)+'" placeholder="HH:MM"></td>'+
-      '<td><input data-veh="'+rig+'.ons" value="'+ro(v.ons)+'" placeholder="HH:MM"></td></tr>';
+    return '<div class="veh-card"><div class="veh-unit">'+rig+'</div><div class="veh-fields">'+
+      '<div class="vf" style="flex:.75"><label>Crew</label><input data-veh="'+rig+'.crew" inputmode="numeric" value="'+ro(v.crew)+'" placeholder="#"></div>'+
+      '<div class="vf" style="flex:1.15"><label>Enroute</label><input data-veh="'+rig+'.enr" value="'+ro(v.enr)+'" placeholder="--:--"></div>'+
+      '<div class="vf" style="flex:1.15"><label>On scene</label><input data-veh="'+rig+'.ons" value="'+ro(v.ons)+'" placeholder="--:--"></div>'+
+      '</div></div>';
   }).join("");
   const itypes=["Fire","HAZMAT","Rescue","EMS","Other"];
   const puses=["Residential","Commercial","Assembly","Education","Roadway","Other"];
@@ -347,7 +358,7 @@ function renderForm(){
   '</div></div>'+
 
   '<div class="sec"><h2>Responding vehicles — times pre-filled, add crew counts</h2>'+
-  '<table class="veh"><tr><th>Unit</th><th># crew</th><th>Enroute</th><th>On scene</th></tr>'+vehRows+'</table></div>'+
+  vehRows+'</div>'+
 
   '<div class="sec"><h2>Incident type</h2><div class="opts">'+
     itypes.map(t=>mopt("itype",t,t)).join("")+
@@ -438,6 +449,24 @@ function wireForm(){
   initSig();
   if(f.sig) sigRestore(f.sig);
   wireMics();
+  wireJump();
+}
+/* section jump nav + ids (mobile: long form) */
+function wireJump(){
+  const secs={"Call info":"s-info","Mutual aid":"s-aid","Responding vehicles":"s-units",
+    "Incident type":"s-type","Action taken":"s-action","Casualties":"s-cas",
+    "Smoke detectors":"s-smoke","Property":"s-prop","Contact for call":"s-contact",
+    "Narrative":"s-narr","Officer in charge":"s-oic"};
+  const chips=[];
+  document.querySelectorAll("#form-body .sec").forEach(sec=>{
+    const h=sec.querySelector("h2").textContent;
+    for(const k in secs){ if(h.indexOf(k)===0){ sec.id=secs[k];
+      chips.push('<a href="#'+secs[k]+'">'+k.replace("Responding vehicles","Units").replace("Officer in charge","OIC").replace("Contact for call","Contact").replace("Smoke detectors","Detectors").replace("Call info","Info")+'</a>'); break; } }
+  });
+  if(!chips.length) return;
+  const nav=document.createElement("div");
+  nav.className="jump"; nav.innerHTML=chips.join("");
+  $("form-body").prepend(nav);
 }
 /* ---- voice dictation on every field (Web Speech API; falls back to typing) ---- */
 let recState=null;
@@ -515,7 +544,7 @@ async function condense(){
 let sigCtx=null,sigDraw=false,sigLast=null,sigInk=false;
 function sigSetup(){
   const cv=$("sigpad"), r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
-  cv.width=r.width*dpr; cv.height=170*dpr; cv.style.height="170px";
+  cv.width=r.width*dpr; cv.height=200*dpr; cv.style.height="200px";
   sigCtx=cv.getContext("2d"); sigCtx.scale(dpr,dpr);
   sigCtx.lineWidth=2.5; sigCtx.lineCap="round"; sigCtx.strokeStyle="#111";
 }
@@ -535,7 +564,7 @@ function initSig(){
 }
 function sigClear(){ sigSetup(); sigInk=false; cur.f.sig=""; cur.dirty=true; }
 function sigRestore(dataUrl){ const img=new Image();
-  img.onload=()=>{ sigSetup(); sigCtx.drawImage(img,0,0,$("sigpad").getBoundingClientRect().width,170);
+  img.onload=()=>{ sigSetup(); sigCtx.drawImage(img,0,0,$("sigpad").getBoundingClientRect().width,200);
     sigInk=true; }; img.src=dataUrl; }
 </script>
 <script>
