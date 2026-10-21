@@ -122,6 +122,28 @@
   .chip{background:#0e1320;border:1px solid var(--border);border-radius:7px;padding:4px 9px;
     font-size:12.5px;font-weight:700}
   .empty{padding:50px 20px;text-align:center;color:var(--muted);font-size:17px}
+  /* ---------- split-screen: 2+ active calls ---------- */
+  #split-wrap{display:none;flex:1;min-height:0;gap:16px;padding:16px}
+  body.split #split-wrap{display:flex}
+  body.split .layout{display:none}
+  #split-list{width:280px;flex:none;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  #split-list .panel-h{padding:14px 18px;border-bottom:1px solid var(--border);font-size:15px;font-weight:800;
+    text-transform:uppercase;letter-spacing:1px;color:var(--muted);flex:0 0 auto}
+  #split-list-items{overflow-y:auto;flex:1;min-height:0}
+  #split-grid{flex:1;min-width:0;min-height:0;overflow-y:auto;display:grid;gap:16px;
+    grid-template-columns:repeat(auto-fit,minmax(400px,1fr));align-content:start}
+  .split-card{background:var(--panel);border:1px solid var(--border);border-top:5px solid var(--sc,#ff5252);
+    border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+  .split-head{padding:14px 16px 10px;flex:0 0 auto}
+  .split-addr{font-weight:800;font-size:23px;line-height:1.25;margin-top:8px}
+  .split-meta{color:var(--muted);font-size:14px;margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+  .split-map{height:320px;min-height:240px;background:#0e1320;flex:0 0 auto}
+  .split-units{padding:10px 16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:0 0 auto}
+  .split-foot{padding:6px 16px 14px;flex:0 0 auto}
+  .split-clear{background:transparent;border:2px solid var(--green);color:var(--green);
+    font-size:15px;font-weight:700;padding:9px 18px;border-radius:9px;cursor:pointer}
+  .split-clear:active{transform:scale(.97)}
   @media (max-width:1020px){
     #app{height:auto;min-height:100vh}
     .layout{flex:none;
@@ -186,6 +208,14 @@
         <a id="route-open" href="#" target="_blank" rel="noopener" style="display:none">Open turn-by-turn in Google Maps ↗</a>
       </div>
     </div>
+  </div>
+
+  <div id="split-wrap">
+    <div id="split-list">
+      <div class="panel-h"><span>📋 Calls</span></div>
+      <div id="split-list-items"></div>
+    </div>
+    <div id="split-grid"></div>
   </div>
 </div>
 
@@ -298,17 +328,19 @@ async function loadIncidents(isPoll){
 function selectIncident(num){ selected=num; renderAll(); }
 
 /* ================= render ================= */
-function renderAll(){ renderList(); renderInfo(); renderHouse(); renderRoute(); }
+function renderAll(){ renderList(); renderInfo(); renderHouse(); renderRoute(); renderSplit(); }
 
-function renderList(){
-  const box=$("list-items");
-  if(!incidents.length){ box.innerHTML='<div class="empty">No calls yet.<br>New calls appear here automatically.</div>'; return; }
-  box.innerHTML=incidents.map(inc=>
-    '<div class="call-item'+(inc.incident_number===selected?" sel":"")+'" data-num="'+esc(inc.incident_number)+'">'+
+function callItemHtml(inc){
+  return '<div class="call-item'+(inc.incident_number===selected?" sel":"")+'" data-num="'+esc(inc.incident_number)+'">'+
     '<div class="t">'+esc(inc.call_type||"Unknown")+(isActive(inc)?' <span class="pill active">ACTIVE</span>':"")+'</div>'+
     '<div class="a">'+esc(inc.address||"—")+'</div>'+
     '<div class="m"><span>'+esc(inc.incident_number)+'</span><span>'+esc(rel(inc.dispatched_at||inc.created_at))+'</span></div>'+
-    '</div>').join("");
+    '</div>';
+}
+function renderList(){
+  const box=$("list-items");
+  if(!incidents.length){ box.innerHTML='<div class="empty">No calls yet.<br>New calls appear here automatically.</div>'; return; }
+  box.innerHTML=incidents.map(callItemHtml).join("");
   box.querySelectorAll(".call-item").forEach(el=>
     el.addEventListener("click",()=>{ $("newcall").style.display="none"; selectIncident(el.dataset.num); }));
 }
@@ -418,21 +450,97 @@ function renderInfo(){
   const cb=$("clear-btn");
   if(cb) cb.addEventListener("click",markCleared);
 }
-/* Manually mark the selected call cleared (county feed doesn't always send one). */
-async function markCleared(){
-  const inc=incidents.find(r=>r.incident_number===selected);
+/* Manually mark a call cleared (county feed doesn't always send one). */
+async function markClearedFor(num){
+  const inc=incidents.find(r=>r.incident_number===num);
   if(!inc||!isActive(inc)) return;
   if(!confirm("Mark this call cleared?\n"+(inc.call_type||"Unknown")+" — "+(inc.address||""))) return;
   try{
     if(!sbClient||!sbClient.from) throw new Error("database client unavailable");
     const {error}=await sbClient.from("incidents")
       .update({cleared_at:new Date().toISOString(),status:"cleared"})
-      .eq("incident_number",selected);
+      .eq("incident_number",num);
     if(error) throw error;
-    /* realtime UPDATE subscription (or the next poll) refreshes the pill */
+    /* realtime UPDATE subscription (or the next poll) refreshes the view */
   }catch(e){
     alert("Could not mark cleared: "+(e&&e.message||e)+
       "\nIf this keeps failing, the one-time SQL update permission may not be set.");
+  }
+}
+/* Manually mark the selected call cleared (county feed doesn't always send one). */
+function markCleared(){ markClearedFor(selected); }
+/* ================= split-screen: 2+ active calls ================= */
+const SPLIT_COLORS=["#ff5252","#ffb020","#5aa9ff","#b388ff"];
+let splitMaps={}, splitKey="__none__";
+function activeOnes(){
+  return incidents.filter(isActive).sort((a,b)=>incTime(b)-incTime(a));
+}
+function renderSplit(){
+  const act=activeOnes();
+  const key=act.map(a=>a.incident_number).join("|");
+  const on=act.length>=2;
+  document.body.classList.toggle("split",on);
+  if(!on){ splitMaps={}; splitKey="__none__"; return; }
+  if(key===splitKey) return; /* same set: maps already live */
+  splitKey=key; splitMaps={};
+  $("split-list-items").innerHTML=incidents.length?incidents.map(callItemHtml).join(""):
+    '<div class="empty">No calls yet.</div>';
+  $("split-list-items").querySelectorAll(".call-item").forEach(el=>
+    el.addEventListener("click",()=>{ $("newcall").style.display="none"; selectIncident(el.dataset.num); }));
+  const grid=$("split-grid");
+  grid.innerHTML=act.map((inc,i)=>{
+    const c=SPLIT_COLORS[i%SPLIT_COLORS.length], num=esc(inc.incident_number);
+    return '<div class="split-card" style="--sc:'+c+'">'+
+      '<div class="split-head"><div class="badges">'+
+      '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span>'+
+      '<span class="pill active">ACTIVE</span></div>'+
+      '<div class="split-addr">'+esc(inc.address||"—")+'</div>'+
+      '<div class="split-meta"><span>'+num+'</span><span>'+esc(fmtDT(inc.dispatched_at))+'</span>'+
+      '<span>('+esc(rel(inc.dispatched_at||inc.created_at))+')</span></div></div>'+
+      '<div class="split-map" id="smap-'+num+'"></div>'+
+      '<div class="split-units" id="sunits-'+num+'"><span style="color:var(--muted);font-size:13px">Loading units…</span></div>'+
+      '<div class="split-foot"><button class="split-clear" data-clear="'+num+'">✓ Mark cleared</button></div>'+
+      '</div>';
+  }).join("");
+  grid.querySelectorAll("[data-clear]").forEach(b=>
+    b.addEventListener("click",()=>markClearedFor(b.dataset.clear)));
+  act.forEach((inc,i)=>{ initSplitMap(inc,SPLIT_COLORS[i%SPLIT_COLORS.length]); loadSplitUnits(inc); });
+}
+function initSplitMap(inc,color){
+  const num=inc.incident_number;
+  if(splitMaps[num]||!window.google||!google.maps) return;
+  const el=document.getElementById("smap-"+num);
+  if(!el) return;
+  const map=new google.maps.Map(el,{center:{lat:40.758,lng:-73.64},zoom:12,
+    mapTypeControl:false,streetViewControl:false,fullscreenControl:false,zoomControl:true});
+  const service=new google.maps.DirectionsService();
+  const renderer=new google.maps.DirectionsRenderer({map:map,preserveViewport:true,
+    polylineOptions:{strokeColor:color,strokeWeight:5}});
+  splitMaps[num]={map:map,service:service,renderer:renderer};
+  const dest=destOf(inc);
+  if(!dest) return;
+  service.route({origin:HQ,destination:dest,travelMode:google.maps.TravelMode.DRIVING},
+    function(result,status){
+      if(status==="OK"&&result.routes&&result.routes.length){
+        renderer.setDirections(result);
+        map.fitBounds(result.routes[0].bounds,60);
+        const z=map.getZoom();
+        map.setZoom(Math.max((z==null?12:z)-1,2));
+      }
+    });
+}
+async function loadSplitUnits(inc){
+  const box=document.getElementById("sunits-"+inc.incident_number);
+  if(!box) return;
+  try{
+    const rows=await api("/incident_units?incident_number=eq."+
+      encodeURIComponent(inc.incident_number)+"&select=unit,enroute_at,onscene_at&order=enroute_at");
+    box.innerHTML=rows.length
+      ? '<span style="color:var(--muted);font-size:13px">Units:</span>'+
+        rows.map(u=>'<span class="chip">'+esc(u.unit)+'</span>').join("")
+      : '<span style="color:var(--muted);font-size:13px">No units listed</span>';
+  }catch(e){
+    box.innerHTML='<span style="color:var(--muted);font-size:13px">Units unavailable</span>';
   }
 }
 /* ================= realtime push + heartbeat + staleness ================= */
