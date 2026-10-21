@@ -216,7 +216,7 @@
         <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
         <div id="route-wrap"><div id="route-map" style="display:none"></div><div id="route-msg"><div class="empty">Select a call.</div></div></div>
         <div class="panel-h hyd-sub"><span>🚒 Hydrants near call</span><span>within 500 m</span></div>
-        <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">H</span>fire hydrant</div></div>
+        <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">H</span>fire hydrant&nbsp;&nbsp;📍 incident location</div></div>
         <a id="route-open" href="#" target="_blank" rel="noopener" style="display:none">Open turn-by-turn in Google Maps ↗</a>
       </div>
     </div>
@@ -397,12 +397,13 @@ function addHydrantMarkers(map,lat,lng){
     icon:hydrantIcon(), label:{text:"H",color:"#ffffff",fontSize:"11px",fontWeight:"800"}
   }));
 }
-function positionHydrantMap(map,markers,lat,lng){
-  const b=new google.maps.LatLngBounds();
-  b.extend(new google.maps.LatLng(lat,lng));
-  markers.forEach(m=>b.extend(m.getPosition()));
-  map.fitBounds(b,40);
-  if(map.getZoom()>16) map.setZoom(16);
+function positionHydrantMap(map,markers,lat,lng,label){
+  /* zoomed tight on the incident location, with a pin dropped on it */
+  const pin=new google.maps.Marker({position:{lat:lat,lng:lng},map:map,
+    title:label||"Incident location",zIndex:1000});
+  map.setCenter({lat:lat,lng:lng});
+  map.setZoom(18);
+  return pin;
 }
 
 /* ---------- route map (Maps JavaScript API: full control of default zoom) ---------- */
@@ -472,8 +473,8 @@ function updateRoute(){
         routeMap.setZoom(Math.max((z==null?12:z)-1,2));
         const end=result.routes[0].legs[0].end_location;
         const marks=hydMap?addHydrantMarkers(hydMap,end.lat(),end.lng()):[];
+        if(hydMap) marks.push(positionHydrantMap(hydMap,marks,end.lat(),end.lng(),"Incident: "+inc.address));
         hydrantMarkers.forEach(m=>m.setMap(null)); hydrantMarkers=marks;
-        if(hydMap) positionHydrantMap(hydMap,marks,end.lat(),end.lng());
         if(hydLeg) hydLeg.style.display=marks.length?"flex":"none";
       }else{
         mapEl.style.display="none"; msg.style.display="block";
@@ -590,7 +591,7 @@ function initSplitMap(inc,color){
         const end=result.routes[0].legs[0].end_location;
         if(hydMapS){
           const marks=addHydrantMarkers(hydMapS,end.lat(),end.lng());
-          positionHydrantMap(hydMapS,marks,end.lat(),end.lng());
+          marks.push(positionHydrantMap(hydMapS,marks,end.lat(),end.lng(),"Incident: "+inc.address));
         }
       }
     });
