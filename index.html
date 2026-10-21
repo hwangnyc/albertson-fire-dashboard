@@ -138,7 +138,9 @@
   .split-head{padding:14px 16px 10px;flex:0 0 auto}
   .split-addr{font-weight:800;font-size:23px;line-height:1.25;margin-top:8px}
   .split-meta{color:var(--muted);font-size:14px;margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
-  .split-map{height:320px;min-height:240px;background:#0e1320;flex:0 0 auto}
+  .split-map{flex:1.25;min-width:0;background:#0e1320}
+  .split-media{display:flex;height:300px;flex:0 0 auto;background:#0e1320}
+  .split-sv{flex:1;min-width:0;object-fit:cover;background:#0e1320;border-left:1px solid var(--border)}
   .split-units{padding:10px 16px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:0 0 auto}
   .split-foot{padding:6px 16px 14px;flex:0 0 auto}
   .split-clear{background:transparent;border:2px solid var(--green);color:var(--green);
@@ -282,6 +284,10 @@ const isActive = inc => {
   return Date.now() - incTime(inc) < AUTO_CLEAR_MS;
 };
 const destOf = inc => (inc.lat && inc.lng) ? inc.lat+","+inc.lng : (inc.address||"");
+function svUrl(inc){
+  const loc=(inc.lat&&inc.lng)?inc.lat+","+inc.lng:(inc.address?encodeURIComponent(inc.address):null);
+  return loc?("https://maps.googleapis.com/maps/api/streetview?size=600x450&fov=110&location="+loc+"&key="+GMAPS_KEY):null;
+}
 
 /* ================= auth gate ================= */
 $("gate-form").addEventListener("submit", async e => {
@@ -490,6 +496,7 @@ function renderSplit(){
   const grid=$("split-grid");
   grid.innerHTML=act.map((inc,i)=>{
     const c=SPLIT_COLORS[i%SPLIT_COLORS.length], num=esc(inc.incident_number);
+    const sv=svUrl(inc);
     return '<div class="split-card" style="--sc:'+c+'">'+
       '<div class="split-head"><div class="badges">'+
       '<span class="badge '+badgeClass(inc.call_type)+'">'+esc(inc.call_type||"Unknown")+'</span>'+
@@ -497,7 +504,8 @@ function renderSplit(){
       '<div class="split-addr">'+esc(inc.address||"—")+'</div>'+
       '<div class="split-meta"><span>'+num+'</span><span>'+esc(fmtDT(inc.dispatched_at))+'</span>'+
       '<span>('+esc(rel(inc.dispatched_at||inc.created_at))+')</span></div></div>'+
-      '<div class="split-map" id="smap-'+num+'"></div>'+
+      '<div class="split-media"><div class="split-map" id="smap-'+num+'"></div>'+
+      (sv?'<img class="split-sv" src="'+sv+'" alt="Street view" loading="lazy" onerror="this.style.display=\'none\'">':"")+'</div>'+
       '<div class="split-units" id="sunits-'+num+'"><span style="color:var(--muted);font-size:13px">Loading units…</span></div>'+
       '<div class="split-foot"><button class="split-clear" data-clear="'+num+'">✓ Mark cleared</button></div>'+
       '</div>';
