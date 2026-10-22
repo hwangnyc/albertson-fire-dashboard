@@ -107,15 +107,16 @@
   #route-wrap{flex:1.15;min-height:0;display:flex;flex-direction:column;position:relative}
   #route-map{width:100%;flex:1;min-height:0;background:#0e1320}
   #route-col .panel-h.hyd-sub{font-size:13px;color:var(--muted)}
-  #hyd-wrap{flex:1;min-height:0;position:relative;background:#0e1320}
+  #hyd-row-wrap{flex:1;min-height:0;display:flex;flex-direction:row}
+  #hyd-wrap{flex:1;min-width:0;min-height:0;position:relative;background:#0e1320}
   #hyd-map{width:100%;height:100%;background:#0e1320}
   .hyd-legend{position:absolute;left:10px;bottom:12px;z-index:5;background:rgba(10,14,24,.82);
     border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);
     display:flex;align-items:center;gap:7px;pointer-events:none}
   .hyd-badge{width:17px;height:17px;border-radius:3px;background:#34a853;color:#fff;font-size:10.5px;
     font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  /* ranked closest-hydrant list (under the hydrant map) */
-  #hyd-list{flex:0 0 auto;max-height:196px;overflow-y:auto;border-top:1px solid var(--border);display:none}
+  /* closest-hydrant callout (side by side with the hydrant map) */
+  #hyd-list{flex:0 0 290px;overflow-y:auto;border-left:1px solid var(--border);display:none}
   .hyd-row{display:flex;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid #1b2334;font-size:14px}
   .hyd-row:first-child{border-top:0}
   .hyd-row.closest{background:rgba(52,168,83,.14)}
@@ -231,8 +232,7 @@
         <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
         <div id="route-wrap"><div id="route-map" style="display:none"></div><div id="route-msg"><div class="empty">Select a call.</div></div></div>
         <div class="panel-h hyd-sub"><span>🚒 Hydrants near call</span><span>within 200 m</span></div>
-        <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">#</span>fire hydrant (by ID)&nbsp;&nbsp;📍 incident location</div></div>
-        <div id="hyd-list"></div>
+        <div id="hyd-row-wrap"><div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">#</span>fire hydrant (by ID)&nbsp;&nbsp;📍 incident location</div></div><div id="hyd-list"></div></div>
       </div>
     </div>
   </div>
@@ -406,7 +406,7 @@ function hydrantLabel(h){
 function loadHydrantNotes(){
   api("/hydrant_notes?select=hydrant_id,cross_street,notes,tags").then(rows=>{
     (rows||[]).forEach(n=>{HYDRANT_NOTES[n.hydrant_id]=n;});
-    if(lastHydEnd) renderHydrantList($("hyd-list"),lastHydEnd.lat,lastHydEnd.lng,5);
+    if(lastHydEnd) renderHydrantList($("hyd-list"),lastHydEnd.lat,lastHydEnd.lng,1);
   }).catch(()=>{/* table not created yet: lists show IDs + distances only */});
 }
 function distM(lat,lng,h){
@@ -468,11 +468,12 @@ function addHydrantMarkers(map,lat,lng){
   }));
 }
 function positionHydrantMap(map,markers,lat,lng,label){
-  /* zoomed tight on the incident location, with a pin dropped on it */
+  /* zoomed in on the incident location (17 — close, but with enough street
+     context to judge whether a hydrant is actually reachable), pin on it */
   const pin=new google.maps.Marker({position:{lat:lat,lng:lng},map:map,
     title:label||"Incident location",zIndex:1000});
   map.setCenter({lat:lat,lng:lng});
-  map.setZoom(18);
+  map.setZoom(17);
   return pin;
 }
 
@@ -545,7 +546,7 @@ function updateRoute(){
         if(hydMap) marks.push(positionHydrantMap(hydMap,marks,end.lat(),end.lng(),"Incident: "+inc.address));
         hydrantMarkers.forEach(m=>m.setMap(null)); hydrantMarkers=marks;
         lastHydEnd={lat:end.lat(),lng:end.lng()};
-        renderHydrantList($("hyd-list"),end.lat(),end.lng(),5);
+        renderHydrantList($("hyd-list"),end.lat(),end.lng(),1);
         if(hydLeg) hydLeg.style.display=marks.length?"flex":"none";
       }else{
         mapEl.style.display="none"; msg.style.display="block";
@@ -665,7 +666,7 @@ function initSplitMap(inc,color){
         if(hydMapS){
           const marks=addHydrantMarkers(hydMapS,end.lat(),end.lng());
           marks.push(positionHydrantMap(hydMapS,marks,end.lat(),end.lng(),"Incident: "+inc.address));
-          renderHydrantList(document.getElementById("shydlist-"+num),end.lat(),end.lng(),3);
+          renderHydrantList(document.getElementById("shydlist-"+num),end.lat(),end.lng(),1);
           splitMaps[num].end={lat:end.lat(),lng:end.lng()};
         }
       }
