@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<title>AFD Hydrants</title>
+<style>
+  :root{--bg:#0b0e14;--panel:#141a26;--panel2:#1a2233;--border:#26314a;--text:#e9eef7;
+    --muted:#8f99b0;--red:#ff5252;--green:#3ddc84;--amber:#ffb020;--blue:#5aa9ff}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:env(safe-area-inset-bottom)}
+  #gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;background:var(--bg)}
+  .gate-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:36px 32px;width:100%;max-width:380px;text-align:center}
+  .gate-card input{width:100%;padding:13px 14px;border-radius:9px;border:1px solid var(--border);
+    background:#0e1320;color:var(--text);font-size:16px}
+  .gate-card button{width:100%;margin-top:12px;padding:13px;border:0;border-radius:9px;
+    background:var(--red);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+  #gate-err{color:var(--red);font-size:13px;min-height:20px;margin-top:10px}
+  .trust{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;
+    color:var(--muted);font-size:13px;cursor:pointer}
+  .trust input{width:auto;accent-color:var(--red)}
+  #app{display:none;min-height:100vh}
+  header{position:sticky;top:0;z-index:20;background:rgba(11,14,20,.96);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px}
+  header h1{font-size:19px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header h1 .cnt{font-size:12px;color:var(--muted);font-weight:600}
+  header a.hbtn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:9px 12px;font-size:14px;text-decoration:none;white-space:nowrap}
+  .searchbar{position:sticky;top:57px;z-index:19;background:rgba(11,14,20,.96);backdrop-filter:blur(8px);
+    padding:10px 16px;border-bottom:1px solid var(--border)}
+  .searchbar input{width:100%;background:#0e1320;border:1px solid var(--border);color:var(--text);
+    border-radius:9px;padding:12px 14px;font-size:16px;font-family:inherit}
+  .wrap{max-width:960px;margin:0 auto;padding:0 16px 40px}
+  #map{height:340px;border:1px solid var(--border);border-radius:12px;margin:14px 0;background:#0e1320}
+  .warn{background:rgba(255,176,32,.1);border:1px solid var(--amber);color:var(--amber);
+    border-radius:10px;padding:12px 14px;font-size:14px;margin:14px 0;display:none;line-height:1.5}
+  /* editor */
+  #editor{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:16px;margin-bottom:14px;display:none}
+  #editor.on{display:block}
+  #editor h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 4px}
+  #ed-title{font-size:20px;font-weight:800;margin:0 0 12px}
+  #ed-title .addr{color:var(--muted);font-weight:600;font-size:15px}
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--muted);margin-bottom:5px}
+  .fld input,.fld textarea{width:100%;background:#0e1320;border:1px solid var(--border);
+    color:var(--text);border-radius:8px;padding:11px 12px;font-size:16px;font-family:inherit}
+  .fld textarea{min-height:96px;resize:vertical;line-height:1.5}
+  .ed-actions{display:flex;gap:10px;align-items:center}
+  .btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:9px;
+    padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer;min-height:44px}
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+  #ed-status{font-size:13.5px;color:var(--muted)}
+  #ed-status.ok{color:var(--green)}
+  #ed-status.err{color:var(--red)}
+  /* table */
+  .tbl-head{display:flex;align-items:baseline;margin:18px 0 8px}
+  .tbl-head h2{font-size:15px;margin:0;flex:1;color:var(--muted);text-transform:uppercase;
+    letter-spacing:1px;font-size:13px}
+  #tbl-count{font-size:13px;color:var(--muted)}
+  .hrow{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:12px 14px;margin-bottom:8px;cursor:pointer;display:flex;gap:12px;align-items:center}
+  .hrow:active{background:var(--panel2)}
+  .hrow.sel{border-color:var(--red);background:rgba(255,82,82,.06)}
+  .hid{font-weight:800;font-size:15px;color:var(--red);flex:none;min-width:56px;font-variant-numeric:tabular-nums}
+  .hinfo{flex:1;min-width:0}
+  .haddr{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .htags{font-size:12.5px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .htags .tag{display:inline-block;background:#0e1320;border:1px solid var(--border);
+    border-radius:10px;padding:2px 9px;margin-right:6px;color:var(--blue)}
+  .hflags{flex:none;display:flex;gap:6px;font-size:13px}
+  .empty{color:var(--muted);text-align:center;padding:30px 10px;font-size:15px}
+  @media(min-width:700px){#map{height:420px}}
+</style>
+</head>
+<body>
+<div id="gate">
+  <form class="gate-card" id="gate-form">
+    <div style="font-size:40px">🚒</div>
+    <h2 style="margin:8px 0 4px">AFD Hydrants</h2>
+    <p style="color:var(--muted);font-size:14px;margin:0 0 18px">Department passphrase required</p>
+    <input id="gate-input" type="password" placeholder="Passphrase" autocomplete="off">
+    <div id="gate-err"></div>
+    <button type="submit">Enter</button>
+    <label class="trust"><input type="checkbox" id="gate-trust"> Trust this device</label>
+  </form>
+</div>
+
+<div id="app">
+  <header>
+    <h1>🚒 Hydrants <span class="cnt" id="hyd-count"></span></h1>
+    <a class="hbtn" href="index.html">📟 Dashboard</a>
+    <a class="hbtn" href="report.html">📝 Reports</a>
+  </header>
+  <div class="searchbar">
+    <input id="search" type="search" placeholder="Search ID, street, notes, tags…" autocomplete="off">
+  </div>
+  <div class="wrap">
+    <div id="map"></div>
+    <div class="warn" id="notes-warn">⚠️ Notes aren't saving yet — run <b>hydrant_notes.sql</b> in the Supabase SQL editor, then reload this page.</div>
+
+    <div id="editor">
+      <h2>Hydrant intel</h2>
+      <div id="ed-title"></div>
+      <div class="fld">
+        <label for="ed-street">Cross street / location</label>
+        <input id="ed-street" placeholder="e.g. Willis Ave @ Walker Pl">
+      </div>
+      <div class="fld">
+        <label for="ed-notes">Notes</label>
+        <textarea id="ed-notes" placeholder="Anything crews should know — pressure issues, access problems, winter burial…"></textarea>
+      </div>
+      <div class="fld">
+        <label for="ed-tags">Tags <span style="text-transform:none;letter-spacing:0">(comma-separated)</span></label>
+        <input id="ed-tags" placeholder="e.g. low-pressure, winter-blocked">
+      </div>
+      <div class="ed-actions">
+        <button class="btn primary" id="ed-save">💾 Save</button>
+        <button class="btn" id="ed-close">Close</button>
+        <span id="ed-status"></span>
+      </div>
+    </div>
+
+    <div class="tbl-head"><h2>All hydrants</h2><span id="tbl-count"></span></div>
+    <div id="tbl"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================= config (injected at build) ================= */
+const SUPABASE_URL="https://sddzkerxgkdnafequvmv.supabase.co/rest/v1";
+const ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZHprZXJ4Z2tkbmFmZXF1dm12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNjIwNTgsImV4cCI6MjA5ODkzODA1OH0.cCCa0ycEpY15jXaO9xxB6lRCJepVouvRkoVsvj7o1CA";
+const GMAPS_KEY="AIzaSyAv-xMvXq1A3gBt56gwWpqNaf_973QUh04";
+const PASS_HASH="ddf742b5270401aafa51842227ee63fb75fd748b232208af6abd9d4814c72614";
+const HEADERS={"apikey":ANON_KEY,"Authorization":"Bearer "+ANON_KEY,"Content-Type":"application/json"};
+/* ================= helpers ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+/* ================= auth ================= */
+async function sha256hex(str){
+  const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+$("gate-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const v=$("gate-input").value; $("gate-err").textContent="";
+  if(!v) return;
+  try{
+    if(await sha256hex(v)===PASS_HASH){
+      sessionStorage.setItem("afd_auth","1");
+      if($("gate-trust").checked){try{localStorage.setItem("afd_auth","1");}catch(_){}}
+      enter();
+    }else{$("gate-err").textContent="Incorrect passphrase.";$("gate-input").value="";}
+  }catch(_){$("gate-err").textContent="This page needs a secure (https) connection.";}
+});
+function enter(){ $("gate").style.display="none"; $("app").style.display="block"; boot(); }
+let _a=false; try{_a=sessionStorage.getItem("afd_auth")==="1"||localStorage.getItem("afd_auth")==="1";}catch(_){}
+if(_a) enter();
+/* ================= data ================= */
+let HYDRANTS=[], NOTES={}, markers={}, map=null, selectedId=null, notesOk=false;
+async function api(path,opts){
+  const r=await fetch(SUPABASE_URL+path,{headers:HEADERS,...(opts||{})});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const t=await r.text(); return t?JSON.parse(t):null;
+}
+function normHydrants(a){
+  return a.map((h,i)=>Array.isArray(h)
+    ? {id:"H-"+String(i+1).padStart(3,"0"),lat:h[0],lng:h[1],address:null}
+    : {id:h.id||("H-"+String(i+1).padStart(3,"0")),lat:h.lat,lng:h.lng,address:h.address||null});
+}
+function label(h){
+  const n=NOTES[h.id];
+  return (n&&n.cross_street)||h.address||h.id;
+}
+function hydrantIcon(sel){
+  return {path:google.maps.SymbolPath.CIRCLE,scale:sel?13:10,
+    fillColor:sel?"#5aa9ff":"#e53935",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2};
+}
+async function boot(){
+  try{
+    const [hj,notes]=await Promise.all([
+      fetch("hydrants.json").then(r=>r.ok?r.json():[]),
+      api("/hydrant_notes?select=hydrant_id,cross_street,notes,tags").catch(()=>null)
+    ]);
+    HYDRANTS=normHydrants(Array.isArray(hj)?hj:[]);
+    if(notes){ notesOk=true; notes.forEach(n=>NOTES[n.hydrant_id]=n); }
+    else { $("notes-warn").style.display="block"; }
+  }catch(e){
+    $("tbl").innerHTML='<div class="empty">Could not load hydrant data.</div>';
+    return;
+  }
+  $("hyd-count").textContent="· "+HYDRANTS.length;
+  initMap(); renderTable("");
+  $("search").addEventListener("input",e=>renderTable(e.target.value.trim().toLowerCase()));
+  $("ed-save").addEventListener("click",saveNote);
+  $("ed-close").addEventListener("click",()=>{selectedId=null;$("editor").classList.remove("on");refreshSel();});
+}
+function initMap(){
+  if(!window.google||!google.maps){loadMapsApi();return;}
+  map=new google.maps.Map($("map"),{center:{lat:40.772,lng:-73.648},zoom:14,
+    mapTypeControl:false,streetViewControl:false,fullscreenControl:true,zoomControl:true});
+  HYDRANTS.forEach(h=>{
+    const m=new google.maps.Marker({position:{lat:h.lat,lng:h.lng},map:map,
+      title:h.id+" · "+(h.address||"hydrant"),icon:hydrantIcon(false),
+      label:{text:"H",color:"#ffffff",fontSize:"10px",fontWeight:"800"}});
+    m.addListener("click",()=>selectHydrant(h.id,true));
+    markers[h.id]=m;
+  });
+}
+function loadMapsApi(){
+  const s=document.createElement("script");
+  s.src="https://maps.googleapis.com/maps/api/js?key="+GMAPS_KEY+"&callback=initMap&loading=async";
+  s.async=true;s.defer=true;document.head.appendChild(s);
+}
+window.initMap=initMap;
+function matches(h,q){
+  if(!q) return true;
+  const n=NOTES[h.id]||{};
+  return (h.id+" "+(h.address||"")+" "+(n.cross_street||"")+" "+(n.notes||"")+" "+(n.tags||"")).toLowerCase().includes(q);
+}
+function renderTable(q){
+  const list=HYDRANTS.filter(h=>matches(h,q));
+  list.forEach(h=>{const m=markers[h.id]; if(m) m.setVisible(matches(h,q));});
+  $("tbl-count").textContent=list.length+" shown";
+  if(!list.length){$("tbl").innerHTML='<div class="empty">No hydrants match.</div>';return;}
+  $("tbl").innerHTML=list.map(h=>{
+    const n=NOTES[h.id]||{};
+    const tags=(n.tags||"").split(",").map(t=>t.trim()).filter(Boolean);
+    return '<div class="hrow'+(h.id===selectedId?" sel":"")+'" data-hid="'+h.id+'">'+
+      '<div class="hid">'+esc(h.id)+'</div>'+
+      '<div class="hinfo"><div class="haddr">'+esc(label(h))+'</div>'+
+      '<div class="htags">'+
+        (tags.length?tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join(""):"")+
+        (n.notes?'<span style="color:var(--muted)">📝 '+(tags.length?"":"notes")+'</span>':"")+
+        (!tags.length&&!n.notes?'<span style="color:var(--muted)">—</span>':"")+
+      '</div></div>'+
+      '<div class="hflags">'+(n.notes||n.tags||n.cross_street?"✏️":"")+'</div>'+
+    '</div>';
+  }).join("");
+  $("tbl").querySelectorAll(".hrow").forEach(el=>
+    el.addEventListener("click",()=>selectHydrant(el.dataset.hid,false)));
+}
+function refreshSel(){
+  Object.keys(markers).forEach(id=>markers[id].setIcon(hydrantIcon(id===selectedId)));
+  document.querySelectorAll(".hrow").forEach(el=>
+    el.classList.toggle("sel",el.dataset.hid===selectedId));
+}
+function selectHydrant(id,fromMap){
+  selectedId=id;
+  const h=HYDRANTS.find(x=>x.id===id); if(!h) return;
+  const n=NOTES[id]||{};
+  $("ed-title").innerHTML=esc(id)+' <span class="addr">'+esc(h.address||"")+'</span>';
+  $("ed-street").value=n.cross_street||h.address||"";
+  $("ed-notes").value=n.notes||"";
+  $("ed-tags").value=n.tags||"";
+  $("ed-status").textContent="";$("ed-status").className="";
+  $("editor").classList.add("on");
+  refreshSel();
+  if(map){map.panTo({lat:h.lat,lng:h.lng});if(map.getZoom()<16)map.setZoom(16);}
+  if(!fromMap) $("editor").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+async function saveNote(){
+  if(!notesOk){$("ed-status").textContent="Notes table not set up yet.";$("ed-status").className="err";return;}
+  const h=HYDRANTS.find(x=>x.id===selectedId); if(!h) return;
+  const cross_street=$("ed-street").value.trim(), notes=$("ed-notes").value.trim(), tags=$("ed-tags").value.trim();
+  $("ed-status").textContent="Saving…";$("ed-status").className="";
+  try{
+    if(!cross_street&&!notes&&!tags&&NOTES[h.id]){
+      await api("/hydrant_notes?hydrant_id=eq."+encodeURIComponent(h.id),{method:"DELETE"});
+      delete NOTES[h.id];
+    }else{
+      await api("/hydrant_notes",{method:"POST",
+        headers:{"Prefer":"resolution=merge-duplicates"},
+        body:JSON.stringify({hydrant_id:h.id,cross_street,notes,tags})});
+      NOTES[h.id]={hydrant_id:h.id,cross_street,notes,tags};
+    }
+    $("ed-status").textContent="✓ Saved";$("ed-status").className="ok";
+    renderTable($("search").value.trim().toLowerCase());
+  }catch(e){
+    $("ed-status").textContent="Save failed: "+e.message;$("ed-status").className="err";
+  }
+}
+</script>
+</body>
+</html>
