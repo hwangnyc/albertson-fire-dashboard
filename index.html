@@ -107,14 +107,15 @@
   #route-wrap{flex:1.15;min-height:0;display:flex;flex-direction:column;position:relative}
   #route-map{width:100%;flex:1;min-height:0;background:#0e1320}
   #route-col .panel-h.hyd-sub{font-size:13px;color:var(--muted)}
-  #hyd-wrap{flex:1;min-height:0;position:relative;background:#0e1320}
+  #hyd-row{flex:1;min-height:0;display:flex}
+  #hyd-wrap{flex:1.3;min-width:0;position:relative;background:#0e1320}
   #hyd-map{width:100%;height:100%;background:#0e1320}
   .hyd-legend{position:absolute;left:10px;bottom:12px;z-index:5;background:rgba(10,14,24,.82);
     border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);
     display:flex;align-items:center;gap:7px;pointer-events:none}
   .hyd-badge{width:17px;height:17px;border-radius:50%;background:#e53935;color:#fff;font-size:10.5px;
     font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  #hyd-list{max-height:200px;overflow-y:auto;border-top:1px solid var(--border);flex:none}
+  #hyd-list{flex:1;min-width:0;overflow-y:auto;border-left:1px solid var(--border)}
   .hyd-item{display:flex;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border)}
   .hyd-id{font-weight:800;color:var(--red);flex:none;font-size:14px;font-variant-numeric:tabular-nums}
   .hyd-info{flex:1;min-width:0}
@@ -129,9 +130,6 @@
   .hyd-empty{color:var(--muted);font-size:13.5px;padding:12px 14px}
   .split-hydlist{max-height:150px;overflow-y:auto;border-top:1px solid var(--border);flex:0 0 auto}
   #route-msg{flex:1;min-height:0;overflow-y:auto}
-  #route-open{display:block;text-align:center;padding:13px;color:var(--text);text-decoration:none;
-    font-size:16px;font-weight:700;border-top:1px solid var(--border);background:var(--panel2);flex:0 0 auto}
-  #route-open:active{background:#232c3d}
   /* details */
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 20px;padding:16px 18px}
   .field .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
@@ -233,9 +231,10 @@
         <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
         <div id="route-wrap"><div id="route-map" style="display:none"></div><div id="route-msg"><div class="empty">Select a call.</div></div></div>
         <div class="panel-h hyd-sub"><span>🚒 Hydrants near call</span><span>within 500 m</span></div>
-        <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">H</span>fire hydrant&nbsp;&nbsp;📍 incident location</div></div>
-        <div id="hyd-list"></div>
-        <a id="route-open" href="#" target="_blank" rel="noopener" style="display:none">Open turn-by-turn in Google Maps ↗</a>
+        <div id="hyd-row">
+          <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">H</span>fire hydrant&nbsp;&nbsp;📍 incident location</div></div>
+          <div id="hyd-list"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -496,19 +495,16 @@ function routeApiFailed(){
     'then tick both under the key&rsquo;s API restrictions.</div>';
 }
 function renderRoute(){
-  const mapEl=$("route-map"), msg=$("route-msg"), open=$("route-open"),
+  const mapEl=$("route-map"), msg=$("route-msg"),
         inc=incidents.find(r=>r.incident_number===selected);
   const dest=inc?destOf(inc):"";
   if(!inc||!dest){
-    open.style.display="none"; routeKey="__none__";
+    routeKey="__none__";
     if(mapEl) mapEl.style.display="none";
     msg.style.display="block";
     msg.innerHTML='<div class="empty">Select a call.</div>';
     return;
   }
-  open.style.display="block";
-  open.href="https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(HQ)+
-    "&destination="+encodeURIComponent(dest);
   if(!routeMap){
     if(mapEl) mapEl.style.display="none";
     msg.style.display="block";
