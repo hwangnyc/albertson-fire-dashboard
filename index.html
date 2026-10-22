@@ -114,15 +114,18 @@
     display:flex;align-items:center;gap:7px;pointer-events:none}
   .hyd-badge{width:17px;height:17px;border-radius:50%;background:#e53935;color:#fff;font-size:10.5px;
     font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  #hyd-list{max-height:230px;overflow-y:auto;border-top:1px solid var(--border);flex:none}
-  .hyd-item{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
+  #hyd-list{max-height:200px;overflow-y:auto;border-top:1px solid var(--border);flex:none}
+  .hyd-item{display:flex;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border)}
   .hyd-id{font-weight:800;color:var(--red);flex:none;font-size:14px;font-variant-numeric:tabular-nums}
   .hyd-info{flex:1;min-width:0}
   .hyd-addr{font-size:14.5px;font-weight:600}
-  .hyd-note{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.45}
-  .hyd-tags{margin-top:4px}
+  .hyd-note{font-size:14px;color:var(--text);margin-top:4px;line-height:1.5}
+  .hyd-tags{margin-top:5px}
   .hyd-tag{display:inline-block;background:#0e1320;border:1px solid var(--border);border-radius:10px;
     padding:2px 9px;margin-right:6px;font-size:12px;color:var(--blue)}
+  .hyd-compact{padding:4px 14px;font-size:13px;color:var(--muted);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .hyd-cid{font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;margin-right:4px}
   .hyd-empty{color:var(--muted);font-size:13.5px;padding:12px 14px}
   .split-hydlist{max-height:150px;overflow-y:auto;border-top:1px solid var(--border);flex:0 0 auto}
   #route-msg{flex:1;min-height:0;overflow-y:auto}
@@ -427,11 +430,17 @@ function addHydrantMarkers(map,lat,lng){
     icon:hydrantIcon(), label:{text:"H",color:"#ffffff",fontSize:"11px",fontWeight:"800"}
   }));
 }
-/* list of in-range hydrants (with any saved notes/tags) under the hydrant map */
+/* list of in-range hydrants under the hydrant map: hydrants WITH saved intel get
+   full rows (notes get the space); the rest collapse to compact one-liners */
 function renderHydrantList(el,near){
   if(!el) return;
   if(!near.length){el.innerHTML='<div class="hyd-empty">No hydrants within 500 m.</div>';return;}
-  el.innerHTML=near.map(h=>{
+  const withIntel=[], plain=[];
+  near.forEach(h=>{
+    const n=HYDRANT_NOTES[h.id]||{};
+    if(n.notes||n.tags) withIntel.push(h); else plain.push(h);
+  });
+  let html=withIntel.map(h=>{
     const n=HYDRANT_NOTES[h.id]||{};
     const tags=(n.tags||"").split(",").map(t=>t.trim()).filter(Boolean);
     let sub="";
@@ -440,6 +449,9 @@ function renderHydrantList(el,near){
     return '<div class="hyd-item"><div class="hyd-id">'+esc(h.id)+'</div>'+
       '<div class="hyd-info"><div class="hyd-addr">'+esc(hydrantLabel(h))+'</div>'+sub+'</div></div>';
   }).join("");
+  if(plain.length)
+    html+=plain.map(h=>'<div class="hyd-compact"><span class="hyd-cid">'+esc(h.id)+'</span> '+esc(hydrantLabel(h))+'</div>').join("");
+  el.innerHTML=html;
 }
 function refreshHydrantLists(){
   if(lastHydEnd&&routeKey!=="__none__")
