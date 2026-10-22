@@ -112,7 +112,7 @@
   .hyd-legend{position:absolute;left:10px;bottom:12px;z-index:5;background:rgba(10,14,24,.82);
     border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);
     display:flex;align-items:center;gap:7px;pointer-events:none}
-  .hyd-badge{width:17px;height:17px;border-radius:50%;background:#1e88e5;color:#fff;font-size:10.5px;
+  .hyd-badge{width:17px;height:17px;border-radius:50%;background:#34a853;color:#fff;font-size:10.5px;
     font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
   #route-msg{flex:1;min-height:0;overflow-y:auto}
   /* details */
@@ -216,7 +216,7 @@
         <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
         <div id="route-wrap"><div id="route-map" style="display:none"></div><div id="route-msg"><div class="empty">Select a call.</div></div></div>
         <div class="panel-h hyd-sub"><span>🚒 Hydrants near call</span><span>within 500 m</span></div>
-        <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">H</span>fire hydrant&nbsp;&nbsp;📍 incident location</div></div>
+        <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">#</span>fire hydrant (by ID)&nbsp;&nbsp;📍 incident location</div></div>
       </div>
     </div>
   </div>
@@ -401,13 +401,13 @@ function hydrantsNear(lat,lng,radiusM){
   return out;
 }
 function hydrantIcon(){
-  return {path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:"#1e88e5",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2};
+  return {path:google.maps.SymbolPath.CIRCLE,scale:14,fillColor:"#34a853",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2};
 }
 function addHydrantMarkers(map,lat,lng){
   if(!window.google||!google.maps||!HYDRANTS.length) return [];
   return hydrantsNear(lat,lng,500).map(h=>new google.maps.Marker({
     position:{lat:h.lat,lng:h.lng}, map:map, title:h.id+" · "+hydrantLabel(h),
-    icon:hydrantIcon(), label:{text:"H",color:"#ffffff",fontSize:"11px",fontWeight:"800"}
+    icon:hydrantIcon(), label:{text:h.id.replace(/^H-/,""),color:"#ffffff",fontSize:"10px",fontWeight:"800"}
   }));
 }
 function positionHydrantMap(map,markers,lat,lng,label){
