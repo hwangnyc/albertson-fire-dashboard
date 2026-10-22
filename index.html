@@ -112,8 +112,23 @@
   .hyd-legend{position:absolute;left:10px;bottom:12px;z-index:5;background:rgba(10,14,24,.82);
     border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);
     display:flex;align-items:center;gap:7px;pointer-events:none}
-  .hyd-badge{width:17px;height:17px;border-radius:50%;background:#34a853;color:#fff;font-size:10.5px;
+  .hyd-badge{width:17px;height:17px;border-radius:3px;background:#34a853;color:#fff;font-size:10.5px;
     font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  /* ranked closest-hydrant list (under the hydrant map) */
+  #hyd-list{flex:0 0 auto;max-height:196px;overflow-y:auto;border-top:1px solid var(--border);display:none}
+  .hyd-row{display:flex;gap:10px;align-items:center;padding:8px 14px;border-top:1px solid #1b2334;font-size:14px}
+  .hyd-row:first-child{border-top:0}
+  .hyd-row.closest{background:rgba(52,168,83,.14)}
+  .hyd-id{font-weight:800;background:#34a853;color:#fff;padding:2px 7px;border-radius:3px;
+    font-size:13px;white-space:nowrap}
+  .hyd-dist{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .hyd-note{color:var(--muted);overflow-wrap:anywhere}
+  .hyd-closest-tag{color:var(--green);font-weight:800;font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.6px;white-space:nowrap}
+  .hyd-none{padding:10px 14px;color:var(--muted);font-size:14px}
+  .split-hydlist{padding:8px 16px;border-top:1px solid var(--border);flex:0 0 auto}
+  .split-hydlist .hyd-row{padding:5px 0;border-top:0;font-size:13.5px}
+  .split-hydlist .hyd-none{padding:2px 0}
   #route-msg{flex:1;min-height:0;overflow-y:auto}
   /* details */
   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 20px;padding:16px 18px}
@@ -215,8 +230,9 @@
       <div class="panel">
         <div class="panel-h"><span>🧭 Route from HQ</span><span>100 I.U. Willets Rd</span></div>
         <div id="route-wrap"><div id="route-map" style="display:none"></div><div id="route-msg"><div class="empty">Select a call.</div></div></div>
-        <div class="panel-h hyd-sub"><span>🚒 Hydrants near call</span><span>within 500 m</span></div>
+        <div class="panel-h hyd-sub"><span>🚒 Hydrants near call</span><span>within 200 m</span></div>
         <div id="hyd-wrap"><div id="hyd-map"></div><div class="hyd-legend" id="hyd-legend" style="display:none"><span class="hyd-badge">#</span>fire hydrant (by ID)&nbsp;&nbsp;📍 incident location</div></div>
+        <div id="hyd-list"></div>
       </div>
     </div>
   </div>
@@ -374,7 +390,8 @@ function renderHouse(){
     'onerror="this.outerHTML=\'<div class=&quot;sv-fallback&quot;>Street View unavailable for this location.</div>\'">';
 }
 
-/* ---------- hydrants (static list, markers within 500 m of the call) ---------- */
+/* ---------- hydrants (static list, markers within 200 m of the call) ---------- */
+const HYDRANT_RADIUS_M=200;
 let HYDRANTS=[], HYDRANT_NOTES={};
 fetch("hydrants.json").then(r=>r.ok?r.json():[]).then(a=>{
   if(Array.isArray(a)) HYDRANTS=a.map((h,i)=>Array.isArray(h)
@@ -389,23 +406,63 @@ function hydrantLabel(h){
 function loadHydrantNotes(){
   api("/hydrant_notes?select=hydrant_id,cross_street,notes,tags").then(rows=>{
     (rows||[]).forEach(n=>{HYDRANT_NOTES[n.hydrant_id]=n;});
-  }).catch(()=>{/* table not created yet: lists show IDs + addresses only */});
+    if(lastHydEnd) renderHydrantList($("hyd-list"),lastHydEnd.lat,lastHydEnd.lng,5);
+  }).catch(()=>{/* table not created yet: lists show IDs + distances only */});
+}
+function distM(lat,lng,h){
+  const R=6371000, rl=Math.PI/180;
+  const dLa=(h.lat-lat)*rl, dLo=(h.lng-lng)*rl;
+  const s=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(lat*rl)*Math.cos(h.lat*rl)*Math.sin(dLo/2)*Math.sin(dLo/2);
+  return 2*R*Math.asin(Math.sqrt(s));
+}
+function hydrantsRanked(lat,lng,radiusM){
+  /* ranked by straight-line distance from the call — the lat/lng in hydrants.json is
+     exact (from the department spreadsheet), so this ranking is confident. The
+     reverse-geocoded street addresses are NOT used here (they proved unreliable). */
+  return HYDRANTS.map(h=>({h:h,d:distM(lat,lng,h)}))
+    .filter(x=>x.d<=radiusM).sort((a,b)=>a.d-b.d);
 }
 function hydrantsNear(lat,lng,radiusM){
-  const out=[], R=6371000, rl=Math.PI/180;
-  for(const h of HYDRANTS){
-    const dLa=(h.lat-lat)*rl, dLo=(h.lng-lng)*rl;
-    const s=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(lat*rl)*Math.cos(h.lat*rl)*Math.sin(dLo/2)*Math.sin(dLo/2);
-    if(2*R*Math.asin(Math.sqrt(s))<=radiusM) out.push(h);
+  return hydrantsRanked(lat,lng,radiusM).map(x=>x.h);
+}
+function fmtDist(d){
+  if(d<1000) return Math.round(d)+" m · "+Math.round(d*3.28084)+" ft";
+  return (d/1000).toFixed(2)+" km · "+(d/1609.34).toFixed(2)+" mi";
+}
+function hydrantListHtml(ranked,limit){
+  if(!ranked.length) return '<div class="hyd-none">No hydrants within 200 m of this call.</div>';
+  return ranked.slice(0,limit).map((x,i)=>{
+    const n=HYDRANT_NOTES[x.h.id]||{};
+    const intel=[n.cross_street,n.notes,n.tags].filter(Boolean).join(" · ");
+    return '<div class="hyd-row'+(i===0?" closest":"")+'">'+
+      '<span class="hyd-id">'+esc(x.h.id)+'</span>'+
+      '<span class="hyd-dist">'+esc(fmtDist(x.d))+'</span>'+
+      (i===0?'<span class="hyd-closest-tag">Closest</span>':"")+
+      (intel?'<span class="hyd-note">'+esc(intel)+'</span>':"")+
+      '</div>';
+  }).join("");
+}
+function renderHydrantList(el,lat,lng,limit){
+  if(!el) return;
+  const ranked=hydrantsRanked(lat,lng,HYDRANT_RADIUS_M);
+  if(ranked.length){
+    el.innerHTML=hydrantListHtml(ranked,limit);
+  }else{
+    /* nothing in range: still name the single nearest hydrant + its distance */
+    const nearest=hydrantsRanked(lat,lng,1e9).slice(0,1);
+    el.innerHTML='<div class="hyd-none">No hydrants within 200 m — nearest is:</div>'+
+      hydrantListHtml(nearest,1);
   }
-  return out;
+  el.style.display="block";
 }
 function hydrantIcon(){
-  return {path:google.maps.SymbolPath.CIRCLE,scale:14,fillColor:"#34a853",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:2};
+  /* green square (custom symbol path), sized to fit the hydrant ID number label */
+  return {path:"M -15,-15 15,-15 15,15 -15,15 z",scale:1,fillColor:"#34a853",fillOpacity:1,
+    strokeColor:"#ffffff",strokeWeight:2,labelOrigin:new google.maps.Point(0,0)};
 }
 function addHydrantMarkers(map,lat,lng){
   if(!window.google||!google.maps||!HYDRANTS.length) return [];
-  return hydrantsNear(lat,lng,500).map(h=>new google.maps.Marker({
+  return hydrantsNear(lat,lng,HYDRANT_RADIUS_M).map(h=>new google.maps.Marker({
     position:{lat:h.lat,lng:h.lng}, map:map, title:h.id+" · "+hydrantLabel(h),
     icon:hydrantIcon(), label:{text:h.id.replace(/^H-/,""),color:"#ffffff",fontSize:"10px",fontWeight:"800"}
   }));
@@ -473,6 +530,7 @@ function updateRoute(){
   routeKey=key;
   hydrantMarkers.forEach(m=>m.setMap(null)); hydrantMarkers=[];
   const hydLeg=$("hyd-legend"); if(hydLeg) hydLeg.style.display="none";
+  const hydList=$("hyd-list"); if(hydList){ hydList.style.display="none"; hydList.innerHTML=""; }
   if(!inc||!destOf(inc)){ dirRenderer.setDirections({routes:[]}); lastHydEnd=null; return; }
   dirService.route({origin:HQ,destination:destOf(inc),travelMode:google.maps.TravelMode.DRIVING},
     function(result,status){
@@ -487,6 +545,7 @@ function updateRoute(){
         if(hydMap) marks.push(positionHydrantMap(hydMap,marks,end.lat(),end.lng(),"Incident: "+inc.address));
         hydrantMarkers.forEach(m=>m.setMap(null)); hydrantMarkers=marks;
         lastHydEnd={lat:end.lat(),lng:end.lng()};
+        renderHydrantList($("hyd-list"),end.lat(),end.lng(),5);
         if(hydLeg) hydLeg.style.display=marks.length?"flex":"none";
       }else{
         mapEl.style.display="none"; msg.style.display="block";
@@ -570,6 +629,7 @@ function renderSplit(){
       '<div class="split-media"><div class="split-map" id="smap-'+num+'"></div>'+
       '<div class="split-map" id="shyd-'+num+'"></div>'+
       (sv?'<img class="split-sv" src="'+sv+'" alt="Street view" loading="lazy" onerror="this.style.display=\'none\'">':"")+'</div>'+
+      '<div class="split-hydlist" id="shydlist-'+num+'"><div class="hyd-none">Nearest hydrants…</div></div>'+
       '<div class="split-units" id="sunits-'+num+'"><span style="color:var(--muted);font-size:13px">Loading units…</span></div>'+
       '<div class="split-foot"><button class="split-clear" data-clear="'+num+'">✓ Mark cleared</button></div>'+
       '</div>';
@@ -605,6 +665,7 @@ function initSplitMap(inc,color){
         if(hydMapS){
           const marks=addHydrantMarkers(hydMapS,end.lat(),end.lng());
           marks.push(positionHydrantMap(hydMapS,marks,end.lat(),end.lng(),"Incident: "+inc.address));
+          renderHydrantList(document.getElementById("shydlist-"+num),end.lat(),end.lng(),3);
           splitMaps[num].end={lat:end.lat(),lng:end.lng()};
         }
       }
