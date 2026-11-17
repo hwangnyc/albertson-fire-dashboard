@@ -13,8 +13,8 @@
 # Run this ON THE PI (one line):
 #   curl -fsSL https://raw.githubusercontent.com/hwangnyc/albertson-fire-dashboard/main/setup-fire-tv.sh | sudo bash
 #
-# After the reboot: enter the department passphrase in the dashboard and
-# check "Trust this device" so it stays logged in across reboots.
+# The dashboard URL carries ?pi=firehouse-tv-1, which makes the page
+# skip the passphrase gate — the TV comes up on its own after reboots.
 #
 set -euo pipefail
 
@@ -84,18 +84,18 @@ command -v unclutter >/dev/null 2>&1 && (unclutter -idle 1 -root >/dev/null 2>&1
 while true; do
   # Clear Chromium's crash flags so a power cut never shows "Restore pages?".
   rm -rf "\$HOME/.config/chromium/Singleton"*
-  "\$CHROME" \
-    --kiosk \
-    --noerrdialogs \
-    --disable-session-crashed-bubble \
-    --disable-infobars \
-    --disable-pinch \
-    --overscroll-history-navigation=0 \
-    --no-first-run \
-    --password-store=basic \
-    --disable-features=Translate \
-    --check-for-update-interval=31536000 \
-    --ozone-platform-hint=auto \
+  "\$CHROME" \\
+    --kiosk \\
+    --noerrdialogs \\
+    --disable-session-crashed-bubble \\
+    --disable-infobars \\
+    --disable-pinch \\
+    --overscroll-history-navigation=0 \\
+    --no-first-run \\
+    --password-store=basic \\
+    --disable-features=Translate \\
+    --check-for-update-interval=31536000 \\
+    --ozone-platform-hint=auto \\
     "\$URL"
   echo "[fire-tv] Chromium exited; relaunching in 5s"
   sleep 5
@@ -122,6 +122,6 @@ fi
 
 say ""
 say "Done. Rebooting in 15 seconds - press Ctrl+C to cancel."
-say "After reboot: enter the department passphrase and check 'Trust this device'."
+say "After reboot the dashboard opens on its own (the ?pi= URL skips the passphrase gate)."
 sleep 15
 sudo reboot

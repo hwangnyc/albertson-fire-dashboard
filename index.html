@@ -339,7 +339,8 @@ $("gate-form").addEventListener("submit", async e => {
     else { $("gate-err").textContent = "Incorrect passphrase."; $("gate-input").value=""; $("gate-input").focus(); }
   } catch(err){ $("gate-err").textContent = "This page needs a secure (https) connection."; }
 });
-function enter(){ $("gate").style.display="none"; $("app").style.display="flex"; boot(); }
+let entered=false;
+function enter(){ entered=true; $("gate").style.display="none"; $("app").style.display="flex"; boot(); }
 
 /* ================= data ================= */
 let incidents=[], selected=null, knownIds=new Set();
@@ -708,17 +709,42 @@ async function loadSplitUnits(inc){
 /* ================= realtime push + heartbeat + staleness ================= */
 const SB_URL = SUPABASE_URL.replace("/rest/v1","");
 const PI_ID = new URLSearchParams(location.search).get("pi") || "firehouse-tv-1";
-let sbClient=null, lastOkTs=0, bootTs=0;
+const IS_SCREEN = new URLSearchParams(location.search).has("pi");
+let sbClient=null, lastOkTs=0, bootTs=0, channelStarted=false;
+function ensureClient(){
+  if(!sbClient && window.supabase){
+    try{ sbClient = window.supabase.createClient(SB_URL, ANON_KEY); }catch(e){}
+  }
+  return sbClient;
+}
 function initRealtime(){
   try{
-    if(sbClient||!window.supabase) return;
-    sbClient = window.supabase.createClient(SB_URL, ANON_KEY);
+    if(channelStarted || !ensureClient()) return;
+    channelStarted = true;
     sbClient.channel("incidents-live")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"incidents"},()=>refresh(true))
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"incidents"},()=>refresh(true))
       .subscribe();
   }catch(e){/* 60s poll remains the fallback */}
 }
+/* Pre-gate heartbeat (fixed screens only — a ?pi= URL like the firehouse
+   TV): beats from the moment the page loads, before the passphrase gate,
+   with last_fetch_ok / newest_incident_at null, so the uptime watch can
+   tell "screen on, stuck at the login screen" apart from "screen off".
+   Stops the moment the app is entered; the normal heartbeat in refresh()
+   then reports real fetch data. */
+async function gateHeartbeat(){
+  if(entered || !ensureClient()) return;
+  try{
+    await sbClient.from("pi_heartbeats").upsert({
+      pi_id: PI_ID,
+      ts: new Date().toISOString(),
+      last_fetch_ok: null,
+      newest_incident_at: null
+    },{onConflict:"pi_id"});
+  }catch(e){/* telemetry must never break the dashboard */}
+}
+if(IS_SCREEN){ gateHeartbeat(); setInterval(gateHeartbeat, 60000); }
 async function heartbeat(){
   if(!sbClient) return;
   try{
@@ -785,7 +811,11 @@ function boot(){
     location.reload();
   });
 }
-if(localStorage.getItem("afd_auth")==="1"||sessionStorage.getItem("afd_auth")==="1") enter();
+/* Fixed screens (?pi= in the URL, e.g. the firehouse TV kiosk) skip the
+   passphrase gate: the TV must come back on its own after the nightly
+   reboot with nobody there to log in. The gate still applies to the
+   plain URL used on phones and laptops. */
+if(IS_SCREEN || localStorage.getItem("afd_auth")==="1" || sessionStorage.getItem("afd_auth")==="1") enter();
 </script>
 </body>
 </html>
