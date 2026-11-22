@@ -99,6 +99,12 @@
   #info-top .info-dt{font-size:18px;font-weight:700}
   #info-top .info-dt .info-rel{color:var(--muted);font-weight:400;font-size:14px}
   #info-top .info-meta{color:var(--muted);font-size:15px}
+  .info-audio{margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.03)}
+  .info-audio-h{font-size:14px;font-weight:700;margin-bottom:6px}
+  .info-audio audio{width:100%}
+  .info-audio .tx-clean,.info-audio .tx-raw{font-size:14.5px;line-height:1.45;margin-top:8px}
+  .info-audio .tx-raw{color:var(--muted)}
+  .info-audio .tx-label{display:block;font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
   #info-top .empty{padding:30px 10px}
   #clear-btn{margin-top:8px;background:transparent;border:2px solid var(--green);color:var(--green);
     font-size:15px;font-weight:700;padding:8px 16px;border-radius:9px;cursor:pointer}
@@ -344,6 +350,7 @@ function enter(){ entered=true; $("gate").style.display="none"; $("app").style.d
 
 /* ================= data ================= */
 let incidents=[], selected=null, knownIds=new Set();
+let clips=[];
 
 async function api(path){
   const r = await fetch(SUPABASE_URL+path,{headers:HEADERS,cache:"no-store"});
@@ -367,6 +374,45 @@ async function loadIncidents(isPoll){
   $("upd").textContent = "upd "+dts.format(new Date());
 }
 function selectIncident(num){ selected=num; renderAll(); }
+
+/* Dispatch audio clips (radio_clips). If the table doesn't exist yet,
+   the fetch fails silently and the dashboard behaves exactly as before. */
+let clipsSig="";
+async function loadClips(){
+  try{ clips = await api("/radio_clips?select=*&order=started_at.desc&limit=50"); }
+  catch(e){ clips = []; }
+  const sig = clips.map(c=>c.id).join(",");
+  const changed = sig!==clipsSig;
+  clipsSig = sig;
+  return changed;
+}
+/* Time-match clips to calls: a clip belongs to the call whose dispatch
+   time is nearest, when the clip starts within -60s / +4min of it. */
+function matchedClips(){
+  const map={};
+  clips.forEach(c=>{
+    const s=new Date(c.started_at).getTime(); if(isNaN(s)) return;
+    let best=null, bd=Infinity;
+    incidents.forEach(inc=>{
+      const t=new Date(inc.dispatched_at||inc.created_at).getTime();
+      if(isNaN(t)) return;
+      if(s>=t-60000 && s<=t+240000){ const d=Math.abs(s-t); if(d<bd){ bd=d; best=inc; } }
+    });
+    if(best){ (map[best.incident_number]=map[best.incident_number]||[]).push(c); }
+  });
+  Object.values(map).forEach(a=>a.sort((x,y)=>new Date(x.started_at)-new Date(y.started_at)));
+  return map;
+}
+function clipHtml(c){
+  let h='<div class="info-audio"><div class="info-audio-h">🎧 Dispatch audio — '+
+    esc(new Date(c.started_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}))+'</div>'+
+    '<audio controls preload="none" src="'+esc(c.public_url)+'"></audio>';
+  if(c.transcript_clean)
+    h+='<div class="tx-clean"><span class="tx-label">Transcript (AI-cleaned, CAD-checked)</span>'+esc(c.transcript_clean)+'</div>';
+  if(c.transcript_raw)
+    h+='<div class="tx-raw"><span class="tx-label">'+(c.transcript_clean?"As heard":"Transcript")+'</span>'+esc(c.transcript_raw)+'</div>';
+  return h+'</div>';
+}
 
 /* ================= render ================= */
 function renderAll(){ renderList(); renderInfo(); renderHouse(); renderRoute(); renderSplit(); }
@@ -595,6 +641,7 @@ function renderInfo(){
     (inc.dispatched_at?'<div class="info-dt">'+esc(fmtDT(inc.dispatched_at))+
       ' <span class="info-rel">('+esc(rel(inc.dispatched_at))+')</span></div>':"")+
     '<div class="info-meta">'+esc(inc.incident_number)+'</div>'+
+    (matchedClips()[inc.incident_number]||[]).map(clipHtml).join("")+
     (isActive(inc)?'<button id="clear-btn">✓ Mark cleared</button>':"");
   const cb=$("clear-btn");
   if(cb) cb.addEventListener("click",markCleared);
@@ -626,7 +673,7 @@ function activeOnes(){
 }
 function renderSplit(){
   const act=activeOnes();
-  const key=act.map(a=>a.incident_number).join("|");
+  const key=act.map(a=>a.incident_number).join("|")+"#"+clipsSig;
   const on=act.length>=2;
   document.body.classList.toggle("split",on);
   if(!on){ splitMaps={}; splitKey="__none__"; return; }
@@ -637,6 +684,7 @@ function renderSplit(){
   $("split-list-items").querySelectorAll(".call-item").forEach(el=>
     el.addEventListener("click",()=>{ $("newcall").style.display="none"; selectIncident(el.dataset.num); }));
   const grid=$("split-grid");
+  const cmap=matchedClips();
   grid.innerHTML=act.map((inc,i)=>{
     const c=SPLIT_COLORS[i%SPLIT_COLORS.length], num=esc(inc.incident_number);
     const sv=svUrl(inc);
@@ -646,7 +694,8 @@ function renderSplit(){
       '<span class="pill active">ACTIVE</span></div>'+
       '<div class="split-addr">'+esc(inc.address||"—")+'</div>'+
       '<div class="split-meta"><span>'+num+'</span><span>'+esc(fmtDT(inc.dispatched_at))+'</span>'+
-      '<span>('+esc(rel(inc.dispatched_at||inc.created_at))+')</span></div></div>'+
+      '<span>('+esc(rel(inc.dispatched_at||inc.created_at))+')</span>'+
+      (cmap[inc.incident_number]?'<span title="Dispatch audio available">🎧</span>':"")+'</div></div>'+
       '<div class="split-media"><div class="split-map" id="smap-'+num+'"></div>'+
       '<div class="split-map" id="shyd-'+num+'"></div>'+
       (sv?'<img class="split-sv" src="'+sv+'" alt="Street view" loading="lazy" onerror="this.style.display=\'none\'">':"")+'</div>'+
@@ -782,6 +831,7 @@ function tickClock(){ $("clock").textContent=dts.format(new Date()); }
 async function refresh(isPoll){
   try{
     await loadIncidents(isPoll);
+    if(await loadClips()) renderAll();
     lastOkTs=Date.now();
     checkConn();
     heartbeat();
