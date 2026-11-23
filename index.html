@@ -92,33 +92,28 @@
   /* house: info on top (1/3), street view below (2/3) */
   #house-split{display:flex;flex-direction:column;flex:1;min-height:0}
   #info-top{flex:0 0 auto;max-height:46%;overflow-y:auto;padding:16px 20px;border-bottom:1px solid var(--border);
-    display:flex;flex-direction:column;justify-content:center;gap:8px}
-  #info-top .badge{font-size:17px;padding:6px 14px}
-  #info-top .pill{font-size:16px;padding:6px 14px}
+    display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
+  #info-top .badge{font-size:16px;padding:6px 14px;line-height:1.1;display:inline-flex;align-items:center}
+  #info-top .pill{font-size:16px;padding:6px 14px;line-height:1.1;display:inline-flex;align-items:center}
   #info-top .info-addr{font-weight:900;font-size:26px;line-height:1.2}
   #info-top .info-dt{font-size:18px;font-weight:700}
-  #info-top .info-dt .info-rel{color:var(--muted);font-weight:400;font-size:14px}
+  #info-top .info-dt .info-rel{color:var(--muted);font-weight:400;font-size:14px;margin-left:6px}
   #info-top .info-meta{color:var(--muted);font-size:15px}
-  .info-audio{margin-top:12px}
-  .play-audio-btn{display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;border:0;
-    border-radius:9px;padding:11px 18px;font-size:15.5px;font-weight:700;cursor:pointer;margin:0 8px 8px 0}
-  .play-audio-btn:active{transform:scale(.97)}
-  /* ---------- clip player popup ---------- */
-  #clip-modal{position:fixed;inset:0;background:rgba(4,6,10,.72);display:none;
-    align-items:center;justify-content:center;z-index:60;padding:20px}
-  .clip-card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:14px;
-    padding:22px 22px 18px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.55)}
-  .clip-card h2{font-size:16.5px;margin:0 28px 12px 0}
-  .clip-x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:8px;border:1px solid var(--border);
-    background:var(--panel2);color:var(--text);font-size:17px;line-height:1;cursor:pointer}
-  .clip-x:active{transform:scale(.95)}
-  .clip-card audio{width:100%}
-  .clip-tx-label{display:block;font-size:11.5px;font-weight:800;letter-spacing:.04em;
-    text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
-  #clip-tx{font-size:16.5px;line-height:1.55;max-height:38vh;overflow:auto}
-  #clip-tx .w{color:var(--muted);transition:color .15s}
-  #clip-tx .w.spoken{color:var(--text)}
-  #clip-tx .w.now{background:var(--red);color:#fff;border-radius:4px;padding:0 2px}
+  /* ---------- inline clip player pill ---------- */
+  .player-pill{display:flex;align-items:center;gap:10px;background:var(--panel2);
+    border:1px solid var(--border);border-radius:999px;padding:7px 14px 7px 8px;margin-top:10px}
+  .pp-toggle{width:36px;height:36px;flex:0 0 36px;border-radius:50%;border:0;background:var(--red);
+    color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .pp-stop{width:28px;height:28px;flex:0 0 28px;border-radius:50%;border:1px solid var(--border);
+    background:transparent;color:var(--muted);font-size:11px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center}
+  .pp-toggle:active,.pp-stop:active{transform:scale(.94)}
+  .pp-label{font-size:13.5px;font-weight:700;white-space:nowrap}
+  .pp-track{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.12);
+    cursor:pointer;position:relative;min-width:60px}
+  .pp-fill{position:absolute;top:0;bottom:0;left:0;width:0%;border-radius:3px;background:var(--red)}
+  .pp-time{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .player-pill audio{display:none}
   #info-top .empty{padding:30px 10px}
   #clear-btn{margin-top:8px;background:transparent;border:2px solid var(--green);color:var(--green);
     font-size:15px;font-weight:700;padding:8px 16px;border-radius:9px;cursor:pointer}
@@ -275,16 +270,6 @@
   </div>
 </div>
 
-<div id="clip-modal">
-  <div class="clip-card">
-    <button class="clip-x" id="clip-x" aria-label="Close">✕</button>
-    <h2 id="clip-title">🎧 Dispatch audio</h2>
-    <audio id="clip-audio" controls preload="metadata"></audio>
-    <span class="clip-tx-label" id="clip-tx-label">Transcript — as heard</span>
-    <div id="clip-tx"></div>
-  </div>
-</div>
-
 <script>
 "use strict";
 /* ================= config ================= */
@@ -319,7 +304,7 @@ function rel(iso){
   if (m < 60) return m + " min ago";
   const h = Math.floor(m/60);
   if (h < 24) return h + " hr " + (m%60) + " min ago";
-  return Math.floor(h/24) + " days ago";
+  const d = Math.floor(h/24); return d + (d===1 ? " day ago" : " days ago");
 }
 async function sha256hex(str){
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
@@ -429,55 +414,48 @@ function matchedClips(){
 }
 let infoClips=[];
 function clipHtml(c,i,n){
-  return '<button class="play-audio-btn" data-i="'+i+'">▶ Play Audio'+
-    (n>1?' — Airing '+(i+1):'')+
-    ' · '+esc(new Date(c.started_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}))+'</button>';
+  const t=new Date(c.started_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+  return '<div class="player-pill">'+
+    '<button class="pp-toggle" aria-label="Play or pause">▶</button>'+
+    '<button class="pp-stop" aria-label="Stop">⏹</button>'+
+    '<span class="pp-label">'+(n>1?'Airing '+(i+1)+' · ':'')+esc(t)+'</span>'+
+    '<div class="pp-track"><div class="pp-fill"></div></div>'+
+    '<span class="pp-time">0:00 / 0:00</span>'+
+    '<audio preload="metadata" src="'+esc(c.public_url)+'"></audio></div>';
 }
-/* In-page popup player: the transcript highlights word by word as the
-   audio plays, paced evenly across the clip. (Exact word timings can
-   replace the pacing once transcript upload carries them.) */
-let clipWords=[];
-function openClipPlayer(i){
-  const c=infoClips[i]; if(!c) return;
-  $("clip-title").textContent="🎧 Dispatch audio — "+
-    new Date(c.started_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
-  const raw=c.transcript_raw||"", clean=c.transcript_clean||"";
-  $("clip-tx-label").textContent=raw?"Transcript — as heard":
-    (clean?"Transcript (AI-cleaned, CAD-checked)":"Transcript");
-  const tx=raw||clean;
-  clipWords=tx?tx.split(/\s+/).filter(Boolean):[];
-  $("clip-tx").innerHTML=clipWords.length
-    ? clipWords.map(w=>'<span class="w">'+esc(w)+"</span>").join(" ")
-    : '<span class="w spoken">No transcript for this clip yet.</span>';
-  const a=$("clip-audio");
-  a.src=c.public_url;
-  $("clip-modal").style.display="flex";
-  a.play().catch(()=>{});
+/* Inline player pill: play/pause and stop live in the pill; the track
+   seeks on click. Only one clip plays at a time. (Transcripts are held
+   back from the UI for now — the data stays in radio_clips.) */
+let activePillAudio=null;
+function fmtDur(s){ if(!isFinite(s)||s<0) s=0; s=Math.floor(s);
+  return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function wirePills(box){
+  box.querySelectorAll(".player-pill").forEach(pill=>{
+    const a=pill.querySelector("audio"),
+      tog=pill.querySelector(".pp-toggle"),
+      stop=pill.querySelector(".pp-stop"),
+      track=pill.querySelector(".pp-track"),
+      fill=pill.querySelector(".pp-fill"),
+      time=pill.querySelector(".pp-time");
+    const paint=()=>{ const d=a.duration||0;
+      fill.style.width=(d?(a.currentTime/d*100):0)+"%";
+      time.textContent=fmtDur(a.currentTime)+" / "+fmtDur(d); };
+    a.addEventListener("loadedmetadata",paint);
+    a.addEventListener("timeupdate",paint);
+    a.addEventListener("ended",()=>{ tog.textContent="▶"; paint(); });
+    a.addEventListener("pause",()=>{ tog.textContent="▶"; });
+    tog.addEventListener("click",()=>{
+      if(a.paused){
+        if(activePillAudio&&activePillAudio!==a) activePillAudio.pause();
+        activePillAudio=a;
+        a.play().then(()=>{ tog.textContent="⏸"; }).catch(()=>{});
+      } else a.pause();
+    });
+    stop.addEventListener("click",()=>{ a.pause(); a.currentTime=0; paint(); });
+    track.addEventListener("click",e=>{ const r=track.getBoundingClientRect();
+      if(a.duration) a.currentTime=((e.clientX-r.left)/r.width)*a.duration; });
+  });
 }
-function closeClipPlayer(){
-  const a=$("clip-audio");
-  a.pause(); a.removeAttribute("src"); a.load();
-  $("clip-modal").style.display="none";
-}
-function syncClipHighlight(){
-  const a=$("clip-audio"), spans=$("clip-tx").children;
-  if(!clipWords.length||!spans.length) return;
-  const n=(a.duration&&isFinite(a.duration))
-    ? Math.floor((a.currentTime/a.duration)*clipWords.length) : 0;
-  for(let k=0;k<spans.length;k++)
-    spans[k].className="w"+(k<n?" spoken":k===n?" now":"");
-}
-$("clip-audio").addEventListener("timeupdate",syncClipHighlight);
-$("clip-audio").addEventListener("seeked",syncClipHighlight);
-$("clip-audio").addEventListener("ended",()=>{
-  const spans=$("clip-tx").children;
-  for(let k=0;k<spans.length;k++) spans[k].className="w spoken";
-});
-$("clip-x").addEventListener("click",closeClipPlayer);
-$("clip-modal").addEventListener("click",e=>{ if(e.target.id==="clip-modal") closeClipPlayer(); });
-document.addEventListener("keydown",e=>{
-  if(e.key==="Escape"&&$("clip-modal").style.display==="flex") closeClipPlayer();
-});
 
 /* ================= render ================= */
 function renderAll(){ renderList(); renderInfo(); renderHouse(); renderRoute(); renderSplit(); }
@@ -711,8 +689,7 @@ function renderInfo(){
     (isActive(inc)?'<button id="clear-btn">✓ Mark cleared</button>':"");
   const cb=$("clear-btn");
   if(cb) cb.addEventListener("click",markCleared);
-  box.querySelectorAll(".play-audio-btn").forEach(b=>
-    b.addEventListener("click",()=>openClipPlayer(+b.dataset.i)));
+  wirePills(box);
 }
 /* Manually mark a call cleared (county feed doesn't always send one). */
 async function markClearedFor(num){
