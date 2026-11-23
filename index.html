@@ -99,12 +99,26 @@
   #info-top .info-dt{font-size:18px;font-weight:700}
   #info-top .info-dt .info-rel{color:var(--muted);font-weight:400;font-size:14px}
   #info-top .info-meta{color:var(--muted);font-size:15px}
-  .info-audio{margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.03)}
-  .info-audio-h{font-size:14px;font-weight:700;margin-bottom:6px}
-  .info-audio audio{width:100%}
-  .info-audio .tx-clean,.info-audio .tx-raw{font-size:14.5px;line-height:1.45;margin-top:8px}
-  .info-audio .tx-raw{color:var(--muted)}
-  .info-audio .tx-label{display:block;font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+  .info-audio{margin-top:12px}
+  .play-audio-btn{display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;border:0;
+    border-radius:9px;padding:11px 18px;font-size:15.5px;font-weight:700;cursor:pointer;margin:0 8px 8px 0}
+  .play-audio-btn:active{transform:scale(.97)}
+  /* ---------- clip player popup ---------- */
+  #clip-modal{position:fixed;inset:0;background:rgba(4,6,10,.72);display:none;
+    align-items:center;justify-content:center;z-index:60;padding:20px}
+  .clip-card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:22px 22px 18px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.55)}
+  .clip-card h2{font-size:16.5px;margin:0 28px 12px 0}
+  .clip-x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:8px;border:1px solid var(--border);
+    background:var(--panel2);color:var(--text);font-size:17px;line-height:1;cursor:pointer}
+  .clip-x:active{transform:scale(.95)}
+  .clip-card audio{width:100%}
+  .clip-tx-label{display:block;font-size:11.5px;font-weight:800;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+  #clip-tx{font-size:16.5px;line-height:1.55;max-height:38vh;overflow:auto}
+  #clip-tx .w{color:var(--muted);transition:color .15s}
+  #clip-tx .w.spoken{color:var(--text)}
+  #clip-tx .w.now{background:var(--red);color:#fff;border-radius:4px;padding:0 2px}
   #info-top .empty{padding:30px 10px}
   #clear-btn{margin-top:8px;background:transparent;border:2px solid var(--green);color:var(--green);
     font-size:15px;font-weight:700;padding:8px 16px;border-radius:9px;cursor:pointer}
@@ -261,6 +275,16 @@
   </div>
 </div>
 
+<div id="clip-modal">
+  <div class="clip-card">
+    <button class="clip-x" id="clip-x" aria-label="Close">✕</button>
+    <h2 id="clip-title">🎧 Dispatch audio</h2>
+    <audio id="clip-audio" controls preload="metadata"></audio>
+    <span class="clip-tx-label" id="clip-tx-label">Transcript — as heard</span>
+    <div id="clip-tx"></div>
+  </div>
+</div>
+
 <script>
 "use strict";
 /* ================= config ================= */
@@ -403,16 +427,57 @@ function matchedClips(){
   Object.values(map).forEach(a=>a.sort((x,y)=>new Date(x.started_at)-new Date(y.started_at)));
   return map;
 }
-function clipHtml(c){
-  let h='<div class="info-audio"><div class="info-audio-h">🎧 Dispatch audio — '+
-    esc(new Date(c.started_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}))+'</div>'+
-    '<audio controls preload="none" src="'+esc(c.public_url)+'"></audio>';
-  if(c.transcript_clean)
-    h+='<div class="tx-clean"><span class="tx-label">Transcript (AI-cleaned, CAD-checked)</span>'+esc(c.transcript_clean)+'</div>';
-  if(c.transcript_raw)
-    h+='<div class="tx-raw"><span class="tx-label">'+(c.transcript_clean?"As heard":"Transcript")+'</span>'+esc(c.transcript_raw)+'</div>';
-  return h+'</div>';
+let infoClips=[];
+function clipHtml(c,i,n){
+  return '<button class="play-audio-btn" data-i="'+i+'">▶ Play Audio'+
+    (n>1?' — Airing '+(i+1):'')+
+    ' · '+esc(new Date(c.started_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}))+'</button>';
 }
+/* In-page popup player: the transcript highlights word by word as the
+   audio plays, paced evenly across the clip. (Exact word timings can
+   replace the pacing once transcript upload carries them.) */
+let clipWords=[];
+function openClipPlayer(i){
+  const c=infoClips[i]; if(!c) return;
+  $("clip-title").textContent="🎧 Dispatch audio — "+
+    new Date(c.started_at).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+  const raw=c.transcript_raw||"", clean=c.transcript_clean||"";
+  $("clip-tx-label").textContent=raw?"Transcript — as heard":
+    (clean?"Transcript (AI-cleaned, CAD-checked)":"Transcript");
+  const tx=raw||clean;
+  clipWords=tx?tx.split(/\s+/).filter(Boolean):[];
+  $("clip-tx").innerHTML=clipWords.length
+    ? clipWords.map(w=>'<span class="w">'+esc(w)+"</span>").join(" ")
+    : '<span class="w spoken">No transcript for this clip yet.</span>';
+  const a=$("clip-audio");
+  a.src=c.public_url;
+  $("clip-modal").style.display="flex";
+  a.play().catch(()=>{});
+}
+function closeClipPlayer(){
+  const a=$("clip-audio");
+  a.pause(); a.removeAttribute("src"); a.load();
+  $("clip-modal").style.display="none";
+}
+function syncClipHighlight(){
+  const a=$("clip-audio"), spans=$("clip-tx").children;
+  if(!clipWords.length||!spans.length) return;
+  const n=(a.duration&&isFinite(a.duration))
+    ? Math.floor((a.currentTime/a.duration)*clipWords.length) : 0;
+  for(let k=0;k<spans.length;k++)
+    spans[k].className="w"+(k<n?" spoken":k===n?" now":"");
+}
+$("clip-audio").addEventListener("timeupdate",syncClipHighlight);
+$("clip-audio").addEventListener("seeked",syncClipHighlight);
+$("clip-audio").addEventListener("ended",()=>{
+  const spans=$("clip-tx").children;
+  for(let k=0;k<spans.length;k++) spans[k].className="w spoken";
+});
+$("clip-x").addEventListener("click",closeClipPlayer);
+$("clip-modal").addEventListener("click",e=>{ if(e.target.id==="clip-modal") closeClipPlayer(); });
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&$("clip-modal").style.display==="flex") closeClipPlayer();
+});
 
 /* ================= render ================= */
 function renderAll(){ renderList(); renderInfo(); renderHouse(); renderRoute(); renderSplit(); }
@@ -641,10 +706,13 @@ function renderInfo(){
     (inc.dispatched_at?'<div class="info-dt">'+esc(fmtDT(inc.dispatched_at))+
       ' <span class="info-rel">('+esc(rel(inc.dispatched_at))+')</span></div>':"")+
     '<div class="info-meta">'+esc(inc.incident_number)+'</div>'+
-    (matchedClips()[inc.incident_number]||[]).map(clipHtml).join("")+
+    (infoClips=matchedClips()[inc.incident_number]||[],
+     infoClips.map((c,i)=>clipHtml(c,i,infoClips.length)).join(""))+
     (isActive(inc)?'<button id="clear-btn">✓ Mark cleared</button>':"");
   const cb=$("clear-btn");
   if(cb) cb.addEventListener("click",markCleared);
+  box.querySelectorAll(".play-audio-btn").forEach(b=>
+    b.addEventListener("click",()=>openClipPlayer(+b.dataset.i)));
 }
 /* Manually mark a call cleared (county feed doesn't always send one). */
 async function markClearedFor(num){
